@@ -1,0 +1,15 @@
+node_modules/
+dist/
+**/dist/
+.vite/
+coverage/
+.playwright-mcp/
+
+workspace/
+.env
+.env.*
+!.env.example
+
+*.log
+pnpm-debug.log*
+tsx-*/

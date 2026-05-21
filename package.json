@@ -1,0 +1,25 @@
+{
+  "name": "algo-gym",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "setup": "tsx scripts/setup.ts",
+    "postinstall": "tsx scripts/setup.ts",
+    "dev": "concurrently \"pnpm --filter @algo-gym/local-api dev\" \"pnpm --filter @algo-gym/web dev\"",
+    "build:index": "tsx scripts/build-index.ts",
+    "guard:privacy": "tsx scripts/guard-privacy.ts",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  },
+  "dependencies": {
+    "@algo-gym/core": "workspace:*",
+    "@algo-gym/workspace": "workspace:*"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -36,7 +36,9 @@ export type CellState =
   | "visited"
   | "current"
   | "path"
-  | "header";
+  | "header"
+  /** 아무것도 그리지 않는 칸 — 트리/트라이처럼 듬성한 레이아웃용 */
+  | "void";
 
 export type GridFrame = {
   kind: "grid";
@@ -57,6 +59,7 @@ export type AlgorithmCategory =
   | "탐색"
   | "배열 테크닉"
   | "자료구조"
+  | "트리"
   | "동적 계획법"
   | "그리디"
   | "그래프 탐색"

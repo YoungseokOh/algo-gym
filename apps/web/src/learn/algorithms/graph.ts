@@ -1,3 +1,4 @@
+import { ArrayTracer } from "../tracer.ts";
 import type { AlgorithmDef, CellState, Frame, GridFrame } from "../types.ts";
 
 const MAZE = [
@@ -504,5 +505,119 @@ export const dijkstra: AlgorithmDef = {
 
     frames.push(makeFrame(5, "더 이상 확정할 칸이 없습니다.", {}));
     return frames;
+  }
+};
+
+export const topologicalSort: AlgorithmDef = {
+  id: "topological-sort",
+  title: "Topological Sort (Kahn's Algorithm)",
+  koTitle: "위상 정렬",
+  category: "그래프 탐색",
+  difficulty: "고급",
+  summary: "선수 과목처럼 '먼저 해야 하는 것'이 있는 작업들을 모순 없는 순서로 나열합니다. 진입 차수 0인 노드부터 차례로 떼어냅니다.",
+  insight: [
+    "LeetCode 207/210 Course Schedule. 상자의 숫자가 진입 차수(in-degree) — '나를 가리키는 간선 수'입니다.",
+    "진입 차수가 0인 노드는 선행 조건이 없으므로 지금 바로 처리할 수 있습니다. 처리하면 그 노드에서 나가는 간선을 지워 이웃의 진입 차수를 줄입니다.",
+    "모든 노드를 처리하지 못하고 큐가 비면 사이클이 있다는 뜻입니다 — '수강 불가능' 판정이 바로 이것입니다.",
+    "결과 순서는 유일하지 않을 수 있습니다. 사전순 최소를 원하면 큐 대신 최소 힙을 씁니다.",
+    "빌드 시스템의 의존성 해석, 패키지 설치 순서, 스프레드시트 수식 계산이 모두 위상 정렬입니다."
+  ],
+  complexity: { time: "O(V + E)", space: "O(V + E)" },
+  code: [
+    "function topoSort(n: number, edges: [number, number][]) {",
+    "  const indegree = new Array(n).fill(0);",
+    "  const adj: number[][] = Array.from({ length: n }, () => []);",
+    "  for (const [from, to] of edges) {",
+    "    adj[from].push(to);",
+    "    indegree[to]++;",
+    "  }",
+    "  const queue = [...indegree.keys()].filter((v) => indegree[v] === 0);",
+    "  const order: number[] = [];",
+    "  while (queue.length) {",
+    "    const v = queue.shift()!;",
+    "    order.push(v);",
+    "    for (const next of adj[v]) {",
+    "      if (--indegree[next] === 0) queue.push(next);",
+    "    }",
+    "  }",
+    "  return order.length === n ? order : null; // null = 사이클",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const n = 7;
+    // i < j 간선만 만들므로 항상 DAG이다.
+    const edges: Array<[number, number]> = [];
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        if (Math.random() < 0.28) edges.push([i, j]);
+      }
+    }
+    if (edges.length < 5) {
+      for (const fallback of [[0, 2], [1, 3], [2, 4], [3, 5], [4, 6]] as Array<[number, number]>) {
+        if (!edges.some(([a, b]) => a === fallback[0] && b === fallback[1])) edges.push(fallback);
+      }
+    }
+    const edgeText = edges.map(([a, b]) => `${a}→${b}`).join(", ");
+
+    const indegree = new Array<number>(n).fill(0);
+    const adj: number[][] = Array.from({ length: n }, () => []);
+    for (const [from, to] of edges) {
+      adj[from].push(to);
+      indegree[to]++;
+    }
+
+    const t = new ArrayTracer([...indegree], "boxes");
+    const queue = Array.from({ length: n }, (_, v) => v).filter((v) => indegree[v] === 0);
+    const order: number[] = [];
+    const queueText = () => (queue.length ? `[${queue.join(", ")}]` : "[]");
+    const queueHighlights = () => Object.fromEntries(queue.map((v) => [v, "window" as const]));
+
+    t.step({
+      line: 7,
+      message: `상자 = 작업 0~${n - 1}, 상자의 숫자 = 진입 차수. 의존 관계는 ${edgeText}. 진입 차수 0인 작업(${queue.join(", ")})은 바로 시작할 수 있습니다.`,
+      highlights: queueHighlights(),
+      vars: { 간선: edgeText, 큐: queueText() }
+    });
+
+    while (queue.length) {
+      const v = queue.shift()!;
+      order.push(v);
+      t.setSublabel(v, `#${order.length}`);
+      t.mark(v, "sorted");
+      t.step({
+        line: 11,
+        message: `진입 차수 0인 ${v}번 작업을 처리합니다 (${order.length}번째). 이제 ${v}번에서 나가는 간선을 지웁니다.`,
+        highlights: { ...queueHighlights(), [v]: "found" },
+        pointers: [{ index: v, label: "처리" }],
+        vars: { 큐: queueText(), 순서: `[${order.join(", ")}]` }
+      });
+      for (const next of adj[v]) {
+        indegree[next]--;
+        t.a[next] = indegree[next];
+        if (indegree[next] === 0) {
+          queue.push(next);
+          t.step({
+            line: 13,
+            message: `간선 ${v}→${next} 제거: ${next}번의 진입 차수가 0이 되어 큐에 들어갑니다 — 선행 조건이 모두 끝났습니다!`,
+            highlights: { ...queueHighlights(), [next]: "active" },
+            vars: { 큐: queueText(), 순서: `[${order.join(", ")}]` }
+          });
+        } else {
+          t.step({
+            line: 13,
+            message: `간선 ${v}→${next} 제거: ${next}번의 진입 차수가 ${indegree[next]}로 줄었지만 아직 선행 조건이 남아 있습니다.`,
+            highlights: { ...queueHighlights(), [next]: "compare" },
+            vars: { 큐: queueText(), 순서: `[${order.join(", ")}]` }
+          });
+        }
+      }
+    }
+
+    t.step({
+      line: 16,
+      message: `모든 작업 ${n}개를 처리했습니다 — 사이클이 없습니다. 위상 순서: [${order.join(", ")}]. 상자 아래 #번호가 처리 순서입니다.`,
+      vars: { 간선: edgeText, 순서: `[${order.join(", ")}]` }
+    });
+    return t.frames;
   }
 };

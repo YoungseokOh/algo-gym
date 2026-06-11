@@ -9,7 +9,8 @@ const cellColors: Record<CellState, string> = {
   visited: "bg-sky-200 border-sky-300 text-sky-900",
   current: "bg-violet-500 border-violet-600 text-white",
   path: "bg-emerald-400 border-emerald-500 text-emerald-950",
-  header: "bg-stone-100 border-stone-200 text-stone-500 font-semibold"
+  header: "bg-stone-100 border-stone-200 text-stone-500 font-semibold",
+  void: "bg-transparent border-transparent"
 };
 
 const mazeLegend: Array<{ state: CellState; label: string }> = [

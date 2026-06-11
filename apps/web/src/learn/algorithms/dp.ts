@@ -575,3 +575,97 @@ export const knapsack: AlgorithmDef = {
     return frames;
   }
 };
+
+export const coinChange: AlgorithmDef = {
+  id: "coin-change",
+  title: "Coin Change",
+  koTitle: "동전 교환",
+  category: "동적 계획법",
+  difficulty: "중급",
+  summary: "금액 a를 만드는 최소 동전 수 dp[a]를 0원부터 차례로 채웁니다. dp[a] = min(dp[a - 동전] + 1).",
+  insight: [
+    "LeetCode 322. '무제한으로 쓸 수 있는 물건'이 있는 배낭 문제(unbounded knapsack)의 대표형입니다.",
+    "그리디(큰 동전부터)는 실패할 수 있습니다 — 동전 [1, 3, 4]로 6원을 만들 때 그리디는 4+1+1=3개지만 정답은 3+3=2개입니다.",
+    "점화식의 뜻: 마지막에 동전 c를 냈다면, 그 직전 상태는 a−c원의 최적해여야 한다 — '마지막 선택으로 경우를 나누는' DP의 표준 사고법입니다.",
+    "만들 수 없는 금액은 Infinity로 남으므로 마지막에 -1로 바꿔 반환합니다.",
+    "0/1 배낭과 달리 동전 루프의 순서는 자유롭습니다. 단, 금액 루프는 오름차순이어야 같은 동전을 여러 번 재사용할 수 있습니다 — 내림차순으로 돌리면 0/1 배낭이 되어 버립니다."
+  ],
+  complexity: { time: "O(금액 × 동전 수)", space: "O(금액)" },
+  code: [
+    "function coinChange(coins: number[], amount: number) {",
+    "  const dp = new Array(amount + 1).fill(Infinity);",
+    "  dp[0] = 0; // 0원은 동전 0개로 가능",
+    "  for (let a = 1; a <= amount; a++) {",
+    "    for (const c of coins) {",
+    "      if (a >= c && dp[a - c] + 1 < dp[a]) {",
+    "        dp[a] = dp[a - c] + 1;",
+    "      }",
+    "    }",
+    "  }",
+    "  return dp[amount] === Infinity ? -1 : dp[amount];",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const coinPool = [
+      [1, 3, 4],
+      [1, 2, 5],
+      [2, 3, 7],
+      [1, 4, 6],
+      [3, 4, 5]
+    ];
+    const coins = coinPool[Math.floor(Math.random() * coinPool.length)];
+    const amount = 11;
+    const dp = new Array<number>(amount + 1).fill(Infinity);
+    dp[0] = 0;
+    const t = new ArrayTracer<number | string>(["0", ...Array.from({ length: amount }, () => "?")], "boxes");
+    for (let a = 0; a <= amount; a++) t.setSublabel(a, `${a}원`);
+    t.mark(0, "sorted");
+
+    t.step({
+      line: 2,
+      message: `동전 [${coins.join(", ")}]로 ${amount}원을 만드는 최소 동전 수를 구합니다. dp[0]=0에서 시작합니다.`,
+      vars: { coins: `[${coins.join(", ")}]`, amount }
+    });
+
+    for (let a = 1; a <= amount; a++) {
+      const candidates: string[] = [];
+      const refs: Partial<Record<number, "compare">> = {};
+      for (const c of coins) {
+        if (a >= c) {
+          refs[a - c] = "compare";
+          candidates.push(dp[a - c] === Infinity ? `${c}원 동전: 불가` : `${c}원 동전: dp[${a - c}]+1=${dp[a - c] + 1}`);
+          if (dp[a - c] + 1 < dp[a]) dp[a] = dp[a - c] + 1;
+        }
+      }
+      t.step({
+        line: 5,
+        message: `dp[${a}] 계산: 마지막에 어떤 동전을 낼지 따져봅니다 — ${candidates.join(" / ")}`,
+        highlights: { ...refs, [a]: "active" },
+        pointers: [{ index: a, label: "a" }],
+        vars: { coins: `[${coins.join(", ")}]`, a }
+      });
+      t.a[a] = dp[a] === Infinity ? "∞" : String(dp[a]);
+      t.mark(a, dp[a] === Infinity ? "discard" : "sorted");
+      t.step({
+        line: 6,
+        message:
+          dp[a] === Infinity
+            ? `${a}원은 이 동전들로 만들 수 없습니다 (∞).`
+            : `dp[${a}] = ${dp[a]} — ${a}원은 최소 ${dp[a]}개로 만들 수 있습니다.`,
+        highlights: { [a]: dp[a] === Infinity ? "discard" : "found" },
+        vars: { coins: `[${coins.join(", ")}]`, a, [`dp[${a}]`]: dp[a] === Infinity ? "∞" : dp[a] }
+      });
+    }
+
+    t.step({
+      line: 10,
+      message:
+        dp[amount] === Infinity
+          ? `${amount}원은 만들 수 없으므로 -1을 반환합니다.`
+          : `정답: ${amount}원을 만드는 최소 동전 수는 ${dp[amount]}개입니다.`,
+      highlights: { [amount]: dp[amount] === Infinity ? "discard" : "found" },
+      vars: { 정답: dp[amount] === Infinity ? -1 : dp[amount] }
+    });
+    return t.frames;
+  }
+};

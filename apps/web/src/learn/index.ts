@@ -1,16 +1,18 @@
 import type { AlgorithmCategory, AlgorithmDef } from "./types.ts";
-import { binarySearch, prefixSum, slidingWindow, twoPointers } from "./algorithms/arrayTechniques.ts";
+import { binarySearch, prefixSum, quickselect, slidingWindow, twoPointers } from "./algorithms/arrayTechniques.ts";
 import { nQueens } from "./algorithms/backtracking.ts";
 import {
+  fastSlowPointers,
   hashTwoSum,
   monotonicStack,
   reverseLinkedList,
   unionFind,
   validParentheses
 } from "./algorithms/dataStructures.ts";
-import { climbingStairs, houseRobber, kadane, knapsack, lcs } from "./algorithms/dp.ts";
-import { bfsGrid, dfsGrid, dijkstra } from "./algorithms/graph.ts";
+import { climbingStairs, coinChange, houseRobber, kadane, knapsack, lcs } from "./algorithms/dp.ts";
+import { bfsGrid, dfsGrid, dijkstra, topologicalSort } from "./algorithms/graph.ts";
 import { jumpGame } from "./algorithms/greedy.ts";
+import { binaryTreeInorder, trie } from "./algorithms/tree.ts";
 import {
   bubbleSort,
   countingSort,
@@ -32,6 +34,7 @@ export const algorithms: AlgorithmDef[] = [
   heapSort,
   // 탐색
   binarySearch,
+  quickselect,
   // 배열 테크닉
   twoPointers,
   slidingWindow,
@@ -41,11 +44,16 @@ export const algorithms: AlgorithmDef[] = [
   validParentheses,
   monotonicStack,
   reverseLinkedList,
+  fastSlowPointers,
   unionFind,
+  // 트리
+  binaryTreeInorder,
+  trie,
   // 동적 계획법
   climbingStairs,
   kadane,
   houseRobber,
+  coinChange,
   lcs,
   knapsack,
   // 그리디
@@ -54,6 +62,7 @@ export const algorithms: AlgorithmDef[] = [
   bfsGrid,
   dfsGrid,
   dijkstra,
+  topologicalSort,
   // 백트래킹
   nQueens
 ];
@@ -63,6 +72,7 @@ export const categoryOrder: AlgorithmCategory[] = [
   "탐색",
   "배열 테크닉",
   "자료구조",
+  "트리",
   "동적 계획법",
   "그리디",
   "그래프 탐색",

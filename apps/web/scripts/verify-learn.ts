@@ -446,6 +446,113 @@ const checks: Record<string, Check> = {
         if (Math.abs(queens[i] - queens[j]) === j - i) fail(`n-queens: ${i}행과 ${j}행의 퀸이 대각선에서 충돌합니다.`);
       }
     }
+  },
+
+  quickselect: (frames) => {
+    const values = firstArrayValues(frames);
+    const k = Number(varOf(frames[0], "k"));
+    const reported = Number(varOf(lastFrame(frames), "정답"));
+    const expected = [...values].sort((a, b) => a - b)[values.length - k];
+    if (reported !== expected) fail(`quickselect: ${k}번째 큰 수 ${reported} ≠ 기준값(정렬) ${expected}`);
+  },
+
+  "fast-slow-pointers": (frames) => {
+    // 첫 프레임의 화살표 라벨에서 next 배열을 복원해 Set 기반으로 사이클을 재판정한다.
+    const first = frames[0] as ArrayFrame;
+    const n = first.values.length;
+    const next = Array.from({ length: n }, (_, i) => {
+      const label = first.sublabels?.[i];
+      if (!label) fail(`fast-slow-pointers: ${i}번 노드의 next 라벨이 없습니다.`);
+      return label === "→∅" ? -1 : Number(label.slice(1));
+    });
+    const seen = new Set<number>();
+    let cursor = 0;
+    let expected = false;
+    while (cursor !== -1) {
+      if (seen.has(cursor)) {
+        expected = true;
+        break;
+      }
+      seen.add(cursor);
+      cursor = next[cursor];
+    }
+    const reported = varOf(lastFrame(frames), "결과") === "true";
+    if (reported !== expected) fail(`fast-slow-pointers: 판정 ${reported} ≠ 기준값(방문 집합) ${expected}`);
+  },
+
+  "binary-tree-inorder": (frames) => {
+    const first = frames[0];
+    if (first.kind !== "grid" || !first.labels) fail("binary-tree-inorder: 트리 라벨이 없습니다.");
+    const values = first.labels.flat().filter((label): label is number => typeof label === "number");
+    const expected = `[${[...values].sort((a, b) => a - b).join(", ")}]`;
+    const reported = varOf(lastFrame(frames), "결과");
+    if (reported !== expected) fail(`binary-tree-inorder: 순회 결과 ${reported} ≠ 정렬 순서 ${expected}`);
+  },
+
+  trie: (frames) => {
+    const last = lastFrame(frames);
+    const words = varOf(last, "단어").split(", ");
+    for (const query of ["CAR", "CA", "CAB"]) {
+      const reported = varOf(last, `search("${query}")`) === "true";
+      const expected = words.includes(query);
+      if (reported !== expected) fail(`trie: search("${query}") = ${reported} ≠ 기준값(단어 목록 포함 여부) ${expected}`);
+    }
+    // 렌더링된 트라이 구조 자체를 단어 목록에서 독립적으로 재구성한 기준과 대조한다.
+    if (last.kind !== "grid" || !last.labels) fail("trie: 트라이 라벨이 없습니다.");
+    const renderedLabels = last.labels.flat().filter((label): label is string => typeof label === "string");
+    const expectedPrefixes = new Set<string>([""]);
+    for (const word of words) {
+      for (let i = 1; i <= word.length; i++) expectedPrefixes.add(word.slice(0, i));
+    }
+    if (renderedLabels.length !== expectedPrefixes.size) {
+      fail(`trie: 렌더링된 노드 ${renderedLabels.length}개 ≠ 기준 트라이 노드 ${expectedPrefixes.size}개`);
+    }
+    const renderedEnds = renderedLabels.filter((label) => label.endsWith("●")).map((label) => label[0]).sort();
+    const expectedEnds = words.map((word) => word[word.length - 1]).sort();
+    if (renderedEnds.join() !== expectedEnds.join()) {
+      fail(`trie: 단어 끝 표시(●) [${renderedEnds.join(",")}] ≠ 기준 [${expectedEnds.join(",")}]`);
+    }
+  },
+
+  "coin-change": (frames) => {
+    const coins = varOf(frames[0], "coins").replace(/[[\]\s]/g, "").split(",").map(Number);
+    const amount = Number(varOf(frames[0], "amount"));
+    // BFS — DP와 독립적인 기준값
+    let expected = -1;
+    const visited = new Set([0]);
+    let level = [0];
+    for (let count = 1; level.length > 0 && expected === -1; count++) {
+      const nextLevel: number[] = [];
+      for (const value of level) {
+        for (const coin of coins) {
+          const sum = value + coin;
+          if (sum === amount) expected = count;
+          if (sum < amount && !visited.has(sum)) {
+            visited.add(sum);
+            nextLevel.push(sum);
+          }
+        }
+      }
+      level = nextLevel;
+    }
+    const reported = Number(varOf(lastFrame(frames), "정답"));
+    if (reported !== expected) fail(`coin-change: [${coins.join(",")}]로 ${amount}원 → ${reported} ≠ 기준값(BFS) ${expected}`);
+  },
+
+  "topological-sort": (frames) => {
+    const edges = varOf(frames[0], "간선")
+      .split(", ")
+      .map((edge) => edge.split("→").map(Number) as [number, number]);
+    const order = varOf(lastFrame(frames), "순서").replace(/[[\]\s]/g, "").split(",").map(Number);
+    if ([...order].sort((a, b) => a - b).join() !== "0,1,2,3,4,5,6") {
+      fail(`topological-sort: 순서가 0..6의 순열이 아닙니다: [${order.join(",")}]`);
+    }
+    const position = new Map(order.map((v, idx) => [v, idx]));
+    for (const [from, to] of edges) {
+      if (position.get(from)! >= position.get(to)!) {
+        fail(`topological-sort: 간선 ${from}→${to}가 순서 [${order.join(",")}]를 위반합니다.`);
+      }
+    }
   }
 };
 

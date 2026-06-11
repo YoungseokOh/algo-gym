@@ -371,3 +371,127 @@ export const prefixSum: AlgorithmDef = {
     return t.frames;
   }
 };
+
+export const quickselect: AlgorithmDef = {
+  id: "quickselect",
+  title: "Quickselect (Kth Largest)",
+  koTitle: "퀵셀렉트",
+  category: "탐색",
+  difficulty: "고급",
+  summary: "퀵 정렬의 partition을 재활용하되, 찾는 위치가 있는 한쪽만 파고들어 k번째 원소를 평균 O(n)에 찾습니다.",
+  insight: [
+    "LeetCode 215 Kth Largest Element. 전체 정렬 O(n log n) 없이 k번째 값만 뽑아냅니다.",
+    "partition이 피벗의 최종 위치 p를 확정해 주므로, p와 목표 위치를 비교해 한쪽 절반을 통째로 버릴 수 있습니다.",
+    "퀵 정렬은 양쪽을 모두 재귀하지만 퀵셀렉트는 한쪽만 봅니다: n + n/2 + n/4 + … = 평균 O(n).",
+    "피벗 운이 나쁘면 O(n²)로 퇴화하는 것도 퀵 정렬과 같습니다. 표시된 코드는 a[hi]를 피벗으로 쓰므로, 실전에서는 무작위 인덱스와 교환하는 한 줄을 추가해 방어하세요.",
+    "k가 작으면 크기 k 최소 힙(O(n log k))도 좋은 선택입니다. 면접에서 두 방법의 트레이드오프를 비교해 보세요."
+  ],
+  complexity: { time: "평균 O(n)", space: "O(1)", note: "최악 O(n²). 이 코드는 a[hi] 고정 피벗 — 무작위 피벗으로 방어 가능" },
+  code: [
+    "function kthLargest(a: number[], k: number) {",
+    "  const target = a.length - k; // 오름차순 기준 위치",
+    "  let lo = 0, hi = a.length - 1;",
+    "  while (true) {",
+    "    const p = partition(a, lo, hi); // 피벗 위치 확정",
+    "    if (p === target) return a[p];",
+    "    if (p < target) lo = p + 1; // 오른쪽만 본다",
+    "    else hi = p - 1;            // 왼쪽만 본다",
+    "  }",
+    "}",
+    "function partition(a, lo, hi) { // 퀵 정렬과 동일 (Lomuto)",
+    "  const pivot = a[hi]; let i = lo;",
+    "  for (let j = lo; j < hi; j++)",
+    "    if (a[j] < pivot) { [a[i], a[j]] = [a[j], a[i]]; i++; }",
+    "  [a[i], a[hi]] = [a[hi], a[i]];",
+    "  return i;",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const t = new ArrayTracer(randomArray(9));
+    const n = t.a.length;
+    const k = 1 + Math.floor(Math.random() * n);
+    const target = n - k;
+
+    t.step({
+      line: 1,
+      message: `${k}번째로 큰 수를 찾습니다. 오름차순으로 정렬했다면 인덱스 ${target} 자리에 올 값입니다.`,
+      vars: { k, target }
+    });
+
+    let lo = 0;
+    let hi = n - 1;
+    for (;;) {
+      const pivot = t.a[hi];
+      t.step({
+        line: 4,
+        message: `구간 [${lo}..${hi}]를 피벗 ${pivot}로 분할합니다.`,
+        highlights: { [hi]: "pivot" },
+        pointers: [
+          { index: lo, label: "lo" },
+          { index: hi, label: "hi" }
+        ],
+        vars: { k, target, lo, hi, pivot }
+      });
+      let i = lo;
+      for (let j = lo; j < hi; j++) {
+        t.step({
+          line: 13,
+          message: `a[${j}]=${t.a[j]}를 피벗 ${pivot}와 비교합니다.`,
+          highlights: { [hi]: "pivot", [j]: "compare" },
+          pointers: [
+            { index: i, label: "i" },
+            { index: j, label: "j" }
+          ],
+          vars: { k, target, lo, hi, pivot }
+        });
+        if (t.a[j] < pivot) {
+          t.swap(i, j);
+          i++;
+        }
+      }
+      t.swap(i, hi);
+      t.step({
+        line: 14,
+        message: `피벗 ${pivot}의 최종 위치는 ${i}입니다. 목표 위치 ${target}와 비교합니다.`,
+        highlights: { [i]: "active" },
+        pointers: [{ index: i, label: "p" }],
+        vars: { k, target, p: i }
+      });
+      if (i === target) {
+        t.step({
+          line: 5,
+          message: `p = target! ${k}번째로 큰 수는 ${t.a[i]}입니다. 정렬을 끝까지 하지 않고 찾았습니다.`,
+          highlights: { [i]: "found" },
+          pointers: [{ index: i, label: "정답" }],
+          vars: { k, 정답: t.a[i] }
+        });
+        return t.frames;
+      }
+      if (i < target) {
+        t.markRange(lo, i, "discard");
+        lo = i + 1;
+        t.step({
+          line: 6,
+          message: `p=${i} < target=${target}: 답은 오른쪽에 있으므로 왼쪽 절반을 통째로 버립니다.`,
+          pointers: [
+            { index: lo, label: "lo" },
+            { index: hi, label: "hi" }
+          ],
+          vars: { k, target, lo, hi }
+        });
+      } else {
+        t.markRange(i, hi, "discard");
+        hi = i - 1;
+        t.step({
+          line: 7,
+          message: `p=${i} > target=${target}: 답은 왼쪽에 있으므로 오른쪽 절반을 통째로 버립니다.`,
+          pointers: [
+            { index: lo, label: "lo" },
+            { index: hi, label: "hi" }
+          ],
+          vars: { k, target, lo, hi }
+        });
+      }
+    }
+  }
+};

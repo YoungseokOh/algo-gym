@@ -37,15 +37,16 @@ The app parses only the URL slug and generated title. It does not fetch the prob
 
 ## Learn: Visual Algorithm Playground
 
-The `Learn` tab is a built-in visual study space covering 26 must-know algorithms, from basics to advanced. Each one runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened (in Korean).
+The `Learn` tab is a built-in visual study space covering 32 must-know algorithms, from basics to advanced. Each one runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened (in Korean).
 
 - Sorting: bubble, selection, insertion, counting, merge, quick, heap
-- Searching: binary search
+- Searching: binary search, quickselect (kth largest)
 - Array techniques: two pointers, sliding window, prefix sum
-- Data structures: hash map (Two Sum), stack (Valid Parentheses), monotonic stack (Daily Temperatures), reverse linked list, union-find
-- Dynamic programming: climbing stairs, Kadane's algorithm, house robber, LCS (with traceback), 0/1 knapsack
+- Data structures: hash map (Two Sum), stack (Valid Parentheses), monotonic stack (Daily Temperatures), reverse linked list, fast & slow pointers (cycle detection), union-find
+- Trees: BST inorder traversal, trie (prefix tree)
+- Dynamic programming: climbing stairs, Kadane's algorithm, house robber, coin change, LCS (with traceback), 0/1 knapsack
 - Greedy: jump game
-- Graph traversal: BFS, DFS, Dijkstra (weighted grid)
+- Graph traversal: BFS, DFS, Dijkstra (weighted grid), topological sort (Kahn)
 - Backtracking: N-Queens
 
 Everything runs fully client-side; no LLM or network access is required. See `docs/learn.md` for the recommended study roadmap and contribution guide.

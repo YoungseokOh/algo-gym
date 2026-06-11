@@ -473,3 +473,102 @@ export const unionFind: AlgorithmDef = {
     return t.frames;
   }
 };
+
+export const fastSlowPointers: AlgorithmDef = {
+  id: "fast-slow-pointers",
+  title: "Fast & Slow Pointers (Cycle Detection)",
+  koTitle: "빠른/느린 포인터",
+  category: "자료구조",
+  difficulty: "중급",
+  summary: "느린 포인터는 한 칸, 빠른 포인터는 두 칸씩 갑니다. 사이클이 있으면 둘은 반드시 만납니다 (플로이드의 토끼와 거북이).",
+  insight: [
+    "LeetCode 141 Linked List Cycle. 방문 집합(Set)으로도 풀 수 있지만 O(n) 메모리가 들고, 이 방법은 O(1)입니다.",
+    "사이클 안에서 빠른 포인터는 매 단계 느린 포인터와의 간격을 1씩 좁힙니다 — 그래서 '반드시' 만나고, 건너뛰어 지나칠 수 없습니다.",
+    "사이클이 없으면 빠른 포인터가 먼저 끝(null)에 닿아 종료합니다. fast와 fast.next 둘 다 검사해야 null 참조 오류가 없습니다.",
+    "만난 지점에서 한 포인터를 머리로 되돌려 같은 속도로 걸으면 사이클 시작점에서 다시 만납니다 (LC 142) — 수학적으로 증명되는 2단계 기법입니다.",
+    "중간 노드 찾기(LC 876), 행복한 수(LC 202), 중복 수 찾기(LC 287)도 같은 패턴입니다."
+  ],
+  complexity: { time: "O(n)", space: "O(1)" },
+  code: [
+    "function hasCycle(head: Node | null) {",
+    "  let slow = head;",
+    "  let fast = head;",
+    "  while (fast && fast.next) {",
+    "    slow = slow.next!;       // 한 칸",
+    "    fast = fast.next.next!;  // 두 칸",
+    "    if (slow === fast) return true; // 만남 = 사이클",
+    "  }",
+    "  return false; // fast가 끝에 닿음 = 사이클 없음",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const n = 8;
+    const values = randomArray(n, 99, 1);
+    const hasCycle = Math.random() < 0.65;
+    const cycleEntry = hasCycle ? Math.floor(Math.random() * (n - 2)) : -1;
+    // next[i]: i번 노드의 다음 노드 인덱스 (-1 = null)
+    const next = Array.from({ length: n }, (_, i) => (i < n - 1 ? i + 1 : cycleEntry));
+
+    const t = new ArrayTracer(values, "boxes");
+    for (let i = 0; i < n; i++) {
+      t.setSublabel(i, next[i] === -1 ? "→∅" : `→${next[i]}`);
+    }
+
+    t.step({
+      line: 2,
+      message: hasCycle
+        ? `상자 아래 화살표가 next 포인터입니다. 마지막 노드가 ${cycleEntry}번으로 되돌아가는 사이클이 숨어 있습니다. slow와 fast 모두 머리에서 출발합니다.`
+        : "상자 아래 화살표가 next 포인터입니다. slow와 fast 모두 머리에서 출발합니다.",
+      pointers: [
+        { index: 0, label: "slow" },
+        { index: 0, label: "fast" }
+      ],
+      vars: { slow: 0, fast: 0 }
+    });
+
+    let slow = 0;
+    let fast = 0;
+    let step = 0;
+    while (fast !== -1 && next[fast] !== -1) {
+      slow = next[slow];
+      fast = next[next[fast]];
+      step++;
+      if (slow === fast) {
+        t.step({
+          line: 6,
+          message: `${step}번째 이동에서 slow와 fast가 ${slow}번 노드에서 만났습니다 — 사이클이 있습니다! 직선이었다면 두 칸씩 가는 fast를 따라잡을 수 없습니다.`,
+          highlights: { [slow]: "found" },
+          pointers: [{ index: slow, label: "slow=fast" }],
+          vars: { 이동: step, 결과: "true" }
+        });
+        return t.frames;
+      }
+      if (fast === -1) {
+        t.step({
+          line: 5,
+          message: `slow는 한 칸(${slow}번), fast는 두 칸 이동하다 리스트 끝(null)을 지나쳤습니다.`,
+          highlights: { [slow]: "active" },
+          pointers: [{ index: slow, label: "slow" }],
+          vars: { 이동: step, slow, fast: "null" }
+        });
+        break;
+      }
+      t.step({
+        line: 5,
+        message: `slow는 한 칸(${slow}번), fast는 두 칸(${fast}번) 이동합니다.${hasCycle ? " 사이클 안에서 간격이 1씩 줄어드는 것을 보세요." : ""}`,
+        highlights: { [slow]: "active", [fast]: "compare" },
+        pointers: [
+          { index: slow, label: "slow" },
+          { index: fast, label: "fast" }
+        ],
+        vars: { 이동: step, slow, fast }
+      });
+    }
+    t.step({
+      line: 8,
+      message: "fast가 리스트의 끝(null)에 닿았습니다 — 사이클이 없습니다.",
+      vars: { 이동: step, 결과: "false" }
+    });
+    return t.frames;
+  }
+};

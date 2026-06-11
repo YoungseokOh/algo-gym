@@ -1,4 +1,4 @@
-import { ArrayTracer, withEnoughSteps } from "../tracer.ts";
+import { ArrayTracer, rangeHighlights, withEnoughSteps } from "../tracer.ts";
 import type { AlgorithmDef, Frame } from "../types.ts";
 
 export const jumpGame: AlgorithmDef = {
@@ -33,66 +33,62 @@ export const jumpGame: AlgorithmDef = {
 };
 
 function buildJumpGameFrames(): Frame[] {
-  {
-    const n = 10;
-    const values = Array.from({ length: n }, () => Math.floor(Math.random() * 4));
-    values[n - 1] = 0;
-    const t = new ArrayTracer(values, "boxes");
-    const last = n - 1;
-    let farthest = 0;
-    const reachableHighlights = () =>
-      Object.fromEntries(
-        Array.from({ length: Math.min(farthest, last) + 1 }, (_, k) => [k, "window" as const])
-      );
+  const n = 10;
+  const values = Array.from({ length: n }, () => Math.floor(Math.random() * 4));
+  values[0] = 1 + Math.floor(Math.random() * 3); // 시작 칸이 0이면 첫 수부터 막혀 보여줄 단계가 없다
+  values[n - 1] = 0;
+  const t = new ArrayTracer(values, "boxes");
+  const last = n - 1;
+  let farthest = 0;
+  const reachableHighlights = () => rangeHighlights(0, Math.min(farthest, last), "window");
 
-    t.step({
-      line: 1,
-      message: "상자의 숫자 = 그 칸에서 점프할 수 있는 최대 거리. 파란 구간이 '현재 도달 가능한 범위'입니다.",
-      highlights: reachableHighlights(),
-      vars: { farthest }
-    });
+  t.step({
+    line: 1,
+    message: "상자의 숫자 = 그 칸에서 점프할 수 있는 최대 거리. 파란 구간이 '현재 도달 가능한 범위'입니다.",
+    highlights: reachableHighlights(),
+    vars: { farthest }
+  });
 
-    for (let i = 0; i < n; i++) {
-      if (i > farthest) {
-        t.step({
-          line: 3,
-          message: `i=${i}가 farthest=${farthest}를 넘었습니다. 이 칸까지 올 방법이 없으므로 실패가 확정됩니다.`,
-          highlights: { ...reachableHighlights(), [i]: "swap" },
-          pointers: [
-            { index: i, label: "i" },
-            { index: farthest, label: "farthest" }
-          ],
-          vars: { i, farthest, 결과: "false" }
-        });
-        return t.frames;
-      }
-      const reach = i + values[i];
-      const improved = reach > farthest;
-      farthest = Math.max(farthest, reach);
+  for (let i = 0; i < n; i++) {
+    if (i > farthest) {
       t.step({
-        line: 4,
-        message: improved
-          ? `i=${i}에서 ${values[i]}칸 점프하면 ${reach}까지 갑니다. farthest를 ${farthest}로 늘립니다.`
-          : `i=${i}에서는 ${reach}까지밖에 못 가서 farthest=${farthest}는 그대로입니다.`,
-        highlights: { ...reachableHighlights(), [i]: "active" },
+        line: 3,
+        message: `i=${i}가 farthest=${farthest}를 넘었습니다. 이 칸까지 올 방법이 없으므로 실패가 확정됩니다.`,
+        highlights: { ...reachableHighlights(), [i]: "swap" },
         pointers: [
           { index: i, label: "i" },
-          { index: Math.min(farthest, last), label: "farthest" }
+          { index: farthest, label: "farthest" }
         ],
-        vars: { i, [`i + a[${i}]`]: reach, farthest }
+        vars: { i, farthest, 결과: "false" }
       });
-      if (farthest >= last) {
-        t.step({
-          line: 5,
-          message: `farthest=${farthest} ≥ 마지막 인덱스 ${last} — 끝까지 갈 수 있습니다!`,
-          highlights: { ...reachableHighlights(), [last]: "found" },
-          pointers: [{ index: last, label: "도착" }],
-          vars: { farthest, 결과: "true" }
-        });
-        return t.frames;
-      }
+      return t.frames;
     }
-    t.step({ line: 7, message: "순회를 마쳤습니다.", vars: { farthest } });
-    return t.frames;
+    const reach = i + values[i];
+    const improved = reach > farthest;
+    farthest = Math.max(farthest, reach);
+    t.step({
+      line: 4,
+      message: improved
+        ? `i=${i}에서 ${values[i]}칸 점프하면 ${reach}까지 갑니다. farthest를 ${farthest}로 늘립니다.`
+        : `i=${i}에서는 ${reach}까지밖에 못 가서 farthest=${farthest}는 그대로입니다.`,
+      highlights: { ...reachableHighlights(), [i]: "active" },
+      pointers: [
+        { index: i, label: "i" },
+        { index: Math.min(farthest, last), label: "farthest" }
+      ],
+      vars: { i, [`i + a[${i}]`]: reach, farthest }
+    });
+    if (farthest >= last) {
+      t.step({
+        line: 5,
+        message: `farthest=${farthest} ≥ 마지막 인덱스 ${last} — 끝까지 갈 수 있습니다!`,
+        highlights: { ...reachableHighlights(), [last]: "found" },
+        pointers: [{ index: last, label: "도착" }],
+        vars: { farthest, 결과: "true" }
+      });
+      return t.frames;
+    }
   }
-};
+  t.step({ line: 7, message: "순회를 마쳤습니다.", vars: { farthest } });
+  return t.frames;
+}

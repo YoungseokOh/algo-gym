@@ -36,6 +36,15 @@ export type WorkspaceConfig = z.infer<typeof configSchema>;
 
 export const defaultConfig: WorkspaceConfig = configSchema.parse({});
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * 손으로 고친 config.yaml이 깨져 있어도 앱이 멈추면 안 된다:
+ * 파싱/검증 실패 시 기본값으로 폴백해 모든 엔드포인트가 계속 동작하고,
+ * Settings에서 저장하면 writeConfig가 유효한 파일로 복구한다.
+ */
 export async function readConfig(projectRoot: string): Promise<WorkspaceConfig> {
   const { configPath } = getWorkspacePaths(projectRoot);
   let raw: string;
@@ -45,22 +54,39 @@ export async function readConfig(projectRoot: string): Promise<WorkspaceConfig> 
     return defaultConfig;
   }
 
-  const parsed: unknown = parse(raw) ?? {};
-  return configSchema.parse(parsed);
+  try {
+    const parsed: unknown = parse(raw) ?? {};
+    return configSchema.parse(parsed);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+    console.warn(`workspace/config.yaml is invalid (${reason}); falling back to defaults. Save settings to repair it.`);
+    return defaultConfig;
+  }
 }
 
 export async function writeConfig(input: unknown, projectRoot: string): Promise<WorkspaceConfig> {
   const current = await readConfig(projectRoot);
-  const patch = (input ?? {}) as Partial<Record<keyof WorkspaceConfig, object>>;
-  const merged = configSchema.parse({
-    llm: { ...current.llm, ...(patch.llm ?? {}) },
-    coach: { ...current.coach, ...(patch.coach ?? {}) },
-    leetcodeStats: { ...current.leetcodeStats, ...(patch.leetcodeStats ?? {}) }
-  });
+  const patch = isRecord(input) ? input : {};
+  // 섹션 목록을 스키마에서 끌어와, 섹션이 추가돼도 머지에서 빠지지 않게 한다.
+  const sections = Object.keys(configSchema.shape) as Array<keyof WorkspaceConfig>;
+  const merged = configSchema.parse(
+    Object.fromEntries(
+      sections.map((section) => [
+        section,
+        { ...current[section], ...(isRecord(patch[section]) ? patch[section] : {}) }
+      ])
+    )
+  );
 
   const { configPath } = await ensureWorkspaceDirs(projectRoot);
   await writeFile(configPath, stringify(merged), "utf8");
   return merged;
+}
+
+/** zod 검증 실패를 사용자에게 보여줄 수 있는 한 줄 메시지로 바꾼다. */
+export function formatConfigError(error: unknown): string | undefined {
+  if (!(error instanceof z.ZodError)) return undefined;
+  return error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
 }
 
 export async function ensureWorkspace(projectRoot: string) {

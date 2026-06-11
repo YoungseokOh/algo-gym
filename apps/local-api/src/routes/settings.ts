@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { createChatCompletion } from "@algo-gym/llm";
-import { readConfig, runPrivacyGuard, writeConfig } from "@algo-gym/workspace";
+import { formatConfigError, readConfig, runPrivacyGuard, writeConfig } from "@algo-gym/workspace";
 import { getProjectRoot } from "../lib/projectRoot.ts";
 
 export const settingsRoutes = new Hono()
@@ -8,8 +8,16 @@ export const settingsRoutes = new Hono()
     return c.json({ config: await readConfig(getProjectRoot()) });
   })
   .patch("/settings", async (c) => {
-    const config = await writeConfig(await c.req.json(), getProjectRoot());
-    return c.json({ config });
+    try {
+      const config = await writeConfig(await c.req.json(), getProjectRoot());
+      return c.json({ config });
+    } catch (error) {
+      const validation = formatConfigError(error);
+      if (validation) {
+        return c.json({ error: `Invalid settings: ${validation}` }, 400);
+      }
+      throw error;
+    }
   })
   .post("/llm/test", async (c) => {
     const config = await readConfig(getProjectRoot());

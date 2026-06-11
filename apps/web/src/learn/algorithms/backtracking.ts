@@ -4,7 +4,7 @@ const QUEENS_LEGEND: Array<{ state: CellState; label: string }> = [
   { state: "path", label: "배치된 퀸" },
   { state: "current", label: "시도 중" },
   { state: "goal", label: "충돌!" },
-  { state: "frontier", label: "공격받는 칸" }
+  { state: "frontier", label: "충돌을 일으킨 퀸" }
 ];
 
 export const nQueens: AlgorithmDef = {
@@ -66,8 +66,9 @@ export const nQueens: AlgorithmDef = {
           labels[r][queens[r]] = "♛";
         }
       }
+      // 충돌 상대는 이미 배치된 퀸("path")이므로 무조건 덮어쓴다.
       for (const [r, c] of options.attacked ?? []) {
-        if (cells[r][c] === "empty") cells[r][c] = "frontier";
+        cells[r][c] = "frontier";
       }
       if (options.trying) {
         const [r, c] = options.trying;

@@ -1,4 +1,4 @@
-import { ArrayTracer, randomArray, withEnoughSteps } from "../tracer.ts";
+import { ArrayTracer, indexHighlights, randomArray, withEnoughSteps } from "../tracer.ts";
 import type { AlgorithmDef, Frame } from "../types.ts";
 
 export const hashTwoSum: AlgorithmDef = {
@@ -83,6 +83,7 @@ const CLOSERS: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
 
 function randomBrackets(): string {
   // 균형 잡힌 문자열을 만든 뒤 40% 확률로 한 글자를 망가뜨린다.
+  // 길이 2짜리는 보여줄 단계가 거의 없으므로 최소 두 쌍(길이 4)을 보장한다.
   let s = "";
   const build = (depth: number): void => {
     if (s.length >= 8 || depth > 3) return;
@@ -92,7 +93,10 @@ function randomBrackets(): string {
     s += CLOSERS[open];
     if (s.length < 8 && Math.random() < 0.4) build(depth);
   };
-  build(0);
+  while (s.length < 4) {
+    s = "";
+    build(0);
+  }
   if (Math.random() < 0.4) {
     const pos = Math.floor(Math.random() * s.length);
     const all = "()[]{}";
@@ -221,7 +225,7 @@ export const monotonicStack: AlgorithmDef = {
     const answer = new Array(temps.length).fill(0);
     const stack: number[] = [];
     const stackText = () => (stack.length ? `[${stack.join(", ")}]` : "[]");
-    const stackHighlights = () => Object.fromEntries(stack.map((idx) => [idx, "window" as const]));
+    const stackHighlights = () => indexHighlights(stack, "window");
 
     t.step({ line: 2, message: "각 날짜에 대해 '며칠 뒤 더 따뜻해지는가'를 구합니다. 스택에는 아직 답을 못 찾은 날짜를 쌓습니다." });
 
@@ -387,7 +391,7 @@ export const unionFind: AlgorithmDef = {
   createFrames(): Frame[] {
     const n = 8;
     const parent = Array.from({ length: n }, (_, i) => i);
-    const t = new ArrayTracer(parent, "boxes");
+    const t = new ArrayTracer(parent, "boxes"); // t.a === parent (참조 공유, 프레임마다 값 복사)
 
     const rootOf = (x: number): number => (parent[x] === x ? x : rootOf(parent[x]));
     const refreshRootLabels = () => {
@@ -412,7 +416,6 @@ export const unionFind: AlgorithmDef = {
           vars: { x, "parent[x]": parent[x] }
         });
         parent[x] = parent[parent[x]];
-        t.a[x] = parent[x];
         x = parent[x];
       }
       t.step({
@@ -440,13 +443,13 @@ export const unionFind: AlgorithmDef = {
         pointers: [
           { index: a, label: "a" },
           { index: b, label: "b" }
-        ]
+        ],
+        vars: { union: `${a},${b}` }
       });
       const ra = find(a, `a=${a}`);
       const rb = find(b, `b=${b}`);
       if (ra !== rb) {
         parent[rb] = ra;
-        t.a[rb] = ra;
         refreshRootLabels();
         t.step({
           line: 10,
@@ -523,7 +526,7 @@ export const fastSlowPointers: AlgorithmDef = {
         { index: 0, label: "slow" },
         { index: 0, label: "fast" }
       ],
-      vars: { slow: 0, fast: 0 }
+      vars: { slow: 0, fast: 0, next: next.join(",") }
     });
 
     let slow = 0;

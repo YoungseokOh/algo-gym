@@ -38,7 +38,7 @@ description: Learn 탭에 새 알고리즘 시각화를 추가할 때 사용. Al
 ## 5. 검증
 
 ```bash
-pnpm --filter @algo-gym/web test   # tsc + 전 알고리즘 × 40회 무작위 감사
+pnpm --filter @algo-gym/web test   # tsc(src+scripts) + 전 알고리즘 감사
 pnpm --filter @algo-gym/web dev    # http://localhost:5173/learn/<id> 직접 확인
 ```
 

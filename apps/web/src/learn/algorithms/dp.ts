@@ -1,4 +1,4 @@
-import { ArrayTracer, randomArray } from "../tracer.ts";
+import { ArrayTracer, randomArray, rangeHighlights } from "../tracer.ts";
 import type { AlgorithmDef, CellState, Frame, GridFrame } from "../types.ts";
 
 export const climbingStairs: AlgorithmDef = {
@@ -28,10 +28,9 @@ export const climbingStairs: AlgorithmDef = {
   ],
   createFrames(): Frame[] {
     const n = 10;
-    const dp = new Array<number>(n + 1).fill(0);
-    dp[0] = 1;
-    dp[1] = 1;
-    const t = new ArrayTracer<number | string>(["1", "1", ...Array.from({ length: n - 1 }, () => "?")], "boxes");
+    // t.a가 dp 표 그 자체다: 계산 전에는 "?", 계산 후에는 숫자.
+    const t = new ArrayTracer<number | string>([1, 1, ...Array.from({ length: n - 1 }, () => "?")], "boxes");
+    const dpAt = (i: number) => Number(t.a[i]);
     for (let i = 0; i <= n; i++) t.setSublabel(i, `dp[${i}]`);
     t.mark(0, "sorted");
     t.mark(1, "sorted");
@@ -44,19 +43,18 @@ export const climbingStairs: AlgorithmDef = {
         message: `dp[${i}]를 구합니다: ${i - 1}번 계단에서 1칸 오르거나, ${i - 2}번 계단에서 2칸 오르거나.`,
         highlights: { [i]: "active", [i - 1]: "compare", [i - 2]: "compare" },
         pointers: [{ index: i, label: "i" }],
-        vars: { i, [`dp[${i - 1}]`]: dp[i - 1], [`dp[${i - 2}]`]: dp[i - 2] }
+        vars: { i, [`dp[${i - 1}]`]: dpAt(i - 1), [`dp[${i - 2}]`]: dpAt(i - 2) }
       });
-      dp[i] = dp[i - 1] + dp[i - 2];
-      t.a[i] = String(dp[i]);
+      t.a[i] = dpAt(i - 1) + dpAt(i - 2);
       t.mark(i, "sorted");
       t.step({
         line: 5,
-        message: `dp[${i}] = ${dp[i - 1]} + ${dp[i - 2]} = ${dp[i]}`,
+        message: `dp[${i}] = ${dpAt(i - 1)} + ${dpAt(i - 2)} = ${dpAt(i)}`,
         highlights: { [i]: "found" },
-        vars: { i, [`dp[${i}]`]: dp[i] }
+        vars: { i, [`dp[${i}]`]: dpAt(i) }
       });
     }
-    t.step({ line: 7, message: `정답: ${n}칸 계단을 오르는 방법은 ${dp[n]}가지입니다.`, highlights: { [n]: "found" }, vars: { [`dp[${n}]`]: dp[n] } });
+    t.step({ line: 7, message: `정답: ${n}칸 계단을 오르는 방법은 ${dpAt(n)}가지입니다.`, highlights: { [n]: "found" }, vars: { [`dp[${n}]`]: dpAt(n) } });
     return t.frames;
   }
 };
@@ -93,8 +91,7 @@ export const kadane: AlgorithmDef = {
     let cur = values[0];
     let start = 0;
     let bestRange: [number, number] = [0, 0];
-    const windowHighlights = (from: number, to: number) =>
-      Object.fromEntries(Array.from({ length: to - from + 1 }, (_, d) => [from + d, "window" as const]));
+    const windowHighlights = (from: number, to: number) => rangeHighlights(from, to, "window");
 
     t.step({
       line: 2,
@@ -140,9 +137,7 @@ export const kadane: AlgorithmDef = {
     t.step({
       line: 7,
       message: `정답: 최대 부분합은 ${best}, 구간 [${bestRange[0]}..${bestRange[1]}]입니다.`,
-      highlights: Object.fromEntries(
-        Array.from({ length: bestRange[1] - bestRange[0] + 1 }, (_, d) => [bestRange[0] + d, "found" as const])
-      ),
+      highlights: rangeHighlights(bestRange[0], bestRange[1], "found"),
       vars: { best }
     });
     return t.frames;
@@ -212,6 +207,83 @@ export const houseRobber: AlgorithmDef = {
   }
 };
 
+type DpGridOptions = {
+  current?: [number, number];
+  refs?: Array<[number, number]>;
+  computedUpTo?: [number, number];
+  path?: Array<[number, number]>;
+  vars?: Record<string, string | number>;
+};
+
+type DpGridConfig = {
+  dp: number[][];
+  /** dp 행마다 하나 (예: ["ε", ...s]) */
+  rowHeaders: Array<string | number>;
+  /** dp 열마다 하나 (예: ["ε", ...t]) */
+  colHeaders: Array<string | number>;
+  corner?: string;
+  legendLabels: { header: string; path: string };
+};
+
+/** LCS·배낭처럼 헤더 행/열이 붙은 2차원 DP 표 프레임을 만든다. */
+function makeDpGridFrame(config: DpGridConfig, line: number, message: string, options: DpGridOptions): GridFrame {
+  const rows = config.dp.length;
+  const cols = config.dp[0].length;
+  const cells: CellState[][] = Array.from({ length: rows + 1 }, () => new Array<CellState>(cols + 1).fill("empty"));
+  const labels: Array<Array<string | number | null>> = Array.from({ length: rows + 1 }, () =>
+    new Array(cols + 1).fill(null)
+  );
+
+  cells[0][0] = "header";
+  labels[0][0] = config.corner ?? null;
+  for (let j = 0; j < cols; j++) {
+    cells[0][j + 1] = "header";
+    labels[0][j + 1] = config.colHeaders[j];
+  }
+  for (let i = 0; i < rows; i++) {
+    cells[i + 1][0] = "header";
+    labels[i + 1][0] = config.rowHeaders[i];
+  }
+
+  const [ci, cj] = options.computedUpTo ?? [rows - 1, cols - 1];
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      if (i < ci || (i === ci && j <= cj)) {
+        cells[i + 1][j + 1] = "visited";
+        labels[i + 1][j + 1] = config.dp[i][j];
+      }
+    }
+  }
+  for (const [ri, rj] of options.refs ?? []) {
+    cells[ri + 1][rj + 1] = "frontier";
+  }
+  for (const [pi, pj] of options.path ?? []) {
+    cells[pi + 1][pj + 1] = "path";
+  }
+  if (options.current) {
+    const [i, j] = options.current;
+    cells[i + 1][j + 1] = "current";
+    labels[i + 1][j + 1] = config.dp[i][j];
+  }
+
+  return {
+    kind: "grid",
+    cells,
+    labels,
+    codeLine: line,
+    message,
+    vars: options.vars,
+    legend: [
+      { state: "header", label: config.legendLabels.header },
+      { state: "current", label: "계산 중" },
+      { state: "frontier", label: "참조하는 칸" },
+      { state: "visited", label: "계산 완료" },
+      { state: "path", label: config.legendLabels.path },
+      { state: "empty", label: "미계산" }
+    ]
+  };
+}
+
 function randomString(length: number, alphabet = "ABCD"): string {
   return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
 }
@@ -256,76 +328,14 @@ export const lcs: AlgorithmDef = {
     const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0));
     const frames: Frame[] = [];
 
-    // 그리드: (m+2) x (n+2) — 0행/0열은 문자 헤더, 1행/1열은 빈 문자열(ε) 기준
-    const makeFrame = (
-      line: number,
-      message: string,
-      options: {
-        current?: [number, number];
-        refs?: Array<[number, number]>;
-        computedUpTo?: [number, number];
-        path?: Array<[number, number]>;
-        vars?: Record<string, string | number>;
-      }
-    ): GridFrame => {
-      const rows = m + 2;
-      const cols = n + 2;
-      const cells: CellState[][] = Array.from({ length: rows }, () => new Array<CellState>(cols).fill("empty"));
-      const labels: Array<Array<string | number | null>> = Array.from({ length: rows }, () => new Array(cols).fill(null));
-
-      cells[0][0] = "header";
-      cells[0][1] = "header";
-      cells[1][0] = "header";
-      labels[0][1] = "ε";
-      labels[1][0] = "ε";
-      for (let j = 0; j < n; j++) {
-        cells[0][j + 2] = "header";
-        labels[0][j + 2] = t[j];
-      }
-      for (let i = 0; i < m; i++) {
-        cells[i + 2][0] = "header";
-        labels[i + 2][0] = s[i];
-      }
-
-      const [ci, cj] = options.computedUpTo ?? [m, n];
-      for (let i = 0; i <= m; i++) {
-        for (let j = 0; j <= n; j++) {
-          const done = i < ci || (i === ci && j <= cj);
-          if (done) {
-            cells[i + 1][j + 1] = "visited";
-            labels[i + 1][j + 1] = dp[i][j];
-          }
-        }
-      }
-      for (const [ri, rj] of options.refs ?? []) {
-        cells[ri + 1][rj + 1] = "frontier";
-      }
-      for (const [pi, pj] of options.path ?? []) {
-        cells[pi + 1][pj + 1] = "path";
-      }
-      if (options.current) {
-        const [i, j] = options.current;
-        cells[i + 1][j + 1] = "current";
-        labels[i + 1][j + 1] = dp[i][j] || "·";
-      }
-
-      return {
-        kind: "grid",
-        cells,
-        labels,
-        codeLine: line,
-        message,
-        vars: options.vars,
-        legend: [
-          { state: "header", label: "문자" },
-          { state: "current", label: "계산 중" },
-          { state: "frontier", label: "참조하는 칸" },
-          { state: "visited", label: "계산 완료" },
-          { state: "path", label: "역추적 경로" },
-          { state: "empty", label: "미계산" }
-        ]
-      };
+    const grid: DpGridConfig = {
+      dp,
+      rowHeaders: ["ε", ...s],
+      colHeaders: ["ε", ...t],
+      legendLabels: { header: "문자", path: "역추적 경로" }
     };
+    const makeFrame = (line: number, message: string, options: DpGridOptions): GridFrame =>
+      makeDpGridFrame(grid, line, message, options);
 
     frames.push(
       makeFrame(2, `s="${s}", t="${t}". 0행/0열은 빈 문자열 기준이라 모두 0입니다.`, {
@@ -437,79 +447,20 @@ export const knapsack: AlgorithmDef = {
     const frames: Frame[] = [];
     const itemText = (item: KnapsackItem) => `${item.name}(무게 ${item.w}, 가치 ${item.v})`;
 
-    const makeFrame = (
-      line: number,
-      message: string,
-      options: {
-        current?: [number, number];
-        refs?: Array<[number, number]>;
-        computedUpTo?: [number, number];
-        path?: Array<[number, number]>;
-        vars?: Record<string, string | number>;
-      }
-    ): GridFrame => {
-      const rows = items.length + 2;
-      const cols = cap + 2;
-      const cells: CellState[][] = Array.from({ length: rows }, () => new Array<CellState>(cols).fill("empty"));
-      const labels: Array<Array<string | number | null>> = Array.from({ length: rows }, () => new Array(cols).fill(null));
-
-      cells[0][0] = "header";
-      labels[0][0] = "c→";
-      for (let c = 0; c <= cap; c++) {
-        cells[0][c + 1] = "header";
-        labels[0][c + 1] = c;
-      }
-      cells[1][0] = "header";
-      labels[1][0] = "∅";
-      for (let i = 0; i < items.length; i++) {
-        cells[i + 2][0] = "header";
-        labels[i + 2][0] = items[i].name;
-      }
-
-      const [ci, cc] = options.computedUpTo ?? [items.length, cap];
-      for (let i = 0; i <= items.length; i++) {
-        for (let c = 0; c <= cap; c++) {
-          const done = i < ci || (i === ci && c <= cc);
-          if (done) {
-            cells[i + 1][c + 1] = "visited";
-            labels[i + 1][c + 1] = dp[i][c];
-          }
-        }
-      }
-      for (const [ri, rc] of options.refs ?? []) {
-        cells[ri + 1][rc + 1] = "frontier";
-      }
-      for (const [pi, pc] of options.path ?? []) {
-        cells[pi + 1][pc + 1] = "path";
-      }
-      if (options.current) {
-        const [i, c] = options.current;
-        cells[i + 1][c + 1] = "current";
-        labels[i + 1][c + 1] = dp[i][c];
-      }
-
-      return {
-        kind: "grid",
-        cells,
-        labels,
-        codeLine: line,
-        message,
-        vars: options.vars,
-        legend: [
-          { state: "header", label: "물건/용량" },
-          { state: "current", label: "계산 중" },
-          { state: "frontier", label: "참조하는 칸" },
-          { state: "visited", label: "계산 완료" },
-          { state: "path", label: "선택 역추적" },
-          { state: "empty", label: "미계산" }
-        ]
-      };
+    const grid: DpGridConfig = {
+      dp,
+      rowHeaders: ["∅", ...items.map((item) => item.name)],
+      colHeaders: Array.from({ length: cap + 1 }, (_, c) => c),
+      corner: "c→",
+      legendLabels: { header: "물건/용량", path: "선택 역추적" }
     };
+    const makeFrame = (line: number, message: string, options: DpGridOptions): GridFrame =>
+      makeDpGridFrame(grid, line, message, options);
 
     frames.push(
       makeFrame(2, `물건: ${items.map(itemText).join(", ")} / 배낭 용량 ${cap}. 0번째 행(물건 없음)은 전부 0입니다.`, {
         computedUpTo: [0, cap],
-        vars: { 용량: cap }
+        vars: { 용량: cap, items: items.map((item) => `${item.w}:${item.v}`).join(",") }
       })
     );
 

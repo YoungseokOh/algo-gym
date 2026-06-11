@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
-    "lint": "tsc --noEmit",
-    "test": "tsc --noEmit && tsx scripts/verify-learn.ts"
+    "lint": "tsc --noEmit && tsc -p tsconfig.scripts.json",
+    "test": "tsc --noEmit && tsc -p tsconfig.scripts.json && tsx scripts/verify-learn.ts"
   },
   "dependencies": {
     "@algo-gym/core": "workspace:*",
@@ -20,6 +20,7 @@
     "vite": "^6.0.7"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "autoprefixer": "^10.4.20",

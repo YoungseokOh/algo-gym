@@ -23,6 +23,27 @@ export function randomSortedArray(length: number, max = 99, min = 1): number[] {
   return randomArray(length, max, min).sort((a, b) => a - b);
 }
 
+/** [from..to] 구간을 한 가지 역할로 칠한 하이라이트 맵을 만든다. */
+export function rangeHighlights(
+  from: number,
+  to: number,
+  role: ArrayHighlight
+): Partial<Record<number, ArrayHighlight>> {
+  const highlights: Partial<Record<number, ArrayHighlight>> = {};
+  for (let i = from; i <= to; i++) highlights[i] = role;
+  return highlights;
+}
+
+/** 흩어진 인덱스들을 한 가지 역할로 칠한 하이라이트 맵을 만든다. */
+export function indexHighlights(
+  indices: Iterable<number>,
+  role: ArrayHighlight
+): Partial<Record<number, ArrayHighlight>> {
+  const highlights: Partial<Record<number, ArrayHighlight>> = {};
+  for (const i of indices) highlights[i] = role;
+  return highlights;
+}
+
 type StepOptions = {
   line: number;
   message: string;

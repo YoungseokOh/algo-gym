@@ -1,6 +1,13 @@
 import { ArrowRight, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { algorithms, categoryOrder } from "../learn/index.ts";
+import type { AlgorithmDef } from "../learn/types.ts";
+
+const difficultyBadge: Record<AlgorithmDef["difficulty"], string> = {
+  기초: "bg-emerald-100 text-emerald-800",
+  중급: "bg-amber-100 text-amber-800",
+  고급: "bg-rose-100 text-rose-800"
+};
 
 export default function Learn() {
   return (
@@ -30,11 +37,7 @@ export default function Learn() {
                       <h3 className="font-semibold text-stone-950">{algorithm.koTitle}</h3>
                       <p className="text-xs text-stone-500">{algorithm.title}</p>
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                        algorithm.difficulty === "기초" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
-                      }`}
-                    >
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${difficultyBadge[algorithm.difficulty]}`}>
                       {algorithm.difficulty}
                     </span>
                   </div>

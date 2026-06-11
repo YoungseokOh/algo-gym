@@ -1,4 +1,4 @@
-import { ArrayTracer, randomArray, randomSortedArray, withEnoughSteps } from "../tracer.ts";
+import { ArrayTracer, randomArray, randomSortedArray, rangeHighlights, withEnoughSteps } from "../tracer.ts";
 import type { AlgorithmDef, Frame } from "../types.ts";
 
 export const binarySearch: AlgorithmDef = {
@@ -34,77 +34,63 @@ export const binarySearch: AlgorithmDef = {
 };
 
 function buildBinarySearchFrames(): Frame[] {
-  {
-    const values = Array.from(new Set(randomSortedArray(14)));
-    const target = values[Math.floor(Math.random() * values.length)];
-    const t = new ArrayTracer(values);
-    t.step({
-      line: 1,
-      message: `정렬된 배열에서 target=${target}을 찾습니다. 탐색 범위는 [0..${values.length - 1}]입니다.`,
-      vars: { target }
-    });
+  const values = Array.from(new Set(randomSortedArray(14)));
+  const target = values[Math.floor(Math.random() * values.length)];
+  const t = new ArrayTracer(values);
+  const searchWindow = (lo: number, hi: number) => ({
+    ...rangeHighlights(0, values.length - 1, "discard"),
+    ...rangeHighlights(lo, hi, "window")
+  });
+  t.step({
+    line: 1,
+    message: `정렬된 배열에서 target=${target}을 찾습니다. 탐색 범위는 [0..${values.length - 1}]입니다.`,
+    vars: { target }
+  });
 
-    let lo = 0;
-    let hi = values.length - 1;
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1;
-      const inRange: Partial<Record<number, "window" | "discard">> = {};
-      for (let k = 0; k < values.length; k++) inRange[k] = k >= lo && k <= hi ? "window" : "discard";
+  let lo = 0;
+  let hi = values.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    t.step({
+      line: 4,
+      message: `가운데 인덱스 mid=${mid}, a[mid]=${values[mid]}를 확인합니다.`,
+      highlights: { ...searchWindow(lo, hi), [mid]: "active" },
+      pointers: [
+        { index: lo, label: "lo" },
+        { index: mid, label: "mid" },
+        { index: hi, label: "hi" }
+      ],
+      vars: { target, lo, hi, mid }
+    });
+    if (values[mid] === target) {
       t.step({
-        line: 4,
-        message: `가운데 인덱스 mid=${mid}, a[mid]=${values[mid]}를 확인합니다.`,
-        highlights: { ...inRange, [mid]: "active" },
-        pointers: [
-          { index: lo, label: "lo" },
-          { index: mid, label: "mid" },
-          { index: hi, label: "hi" }
-        ],
-        vars: { target, lo, hi, mid }
+        line: 5,
+        message: `a[${mid}]=${target} — 목표를 찾았습니다! 범위를 절반씩 줄인 덕분에 몇 번 만에 끝났습니다.`,
+        highlights: { [mid]: "found" },
+        pointers: [{ index: mid, label: "정답" }],
+        vars: { target, "찾은 위치": mid }
       });
-      if (values[mid] === target) {
-        t.step({
-          line: 5,
-          message: `a[${mid}]=${target} — 목표를 찾았습니다! 범위를 절반씩 줄인 덕분에 몇 번 만에 끝났습니다.`,
-          highlights: { [mid]: "found" },
-          pointers: [{ index: mid, label: "정답" }],
-          vars: { target, "찾은 위치": mid }
-        });
-        return t.frames;
-      }
-      if (values[mid] < target) {
-        lo = mid + 1;
-        t.step({
-          line: 6,
-          message: `a[mid]=${values[mid]} < ${target} 이므로 왼쪽 절반을 통째로 버립니다. lo=${lo}`,
-          highlights: Object.fromEntries(
-            Array.from({ length: values.length }, (_, k) => [k, k >= lo && k <= hi ? "window" : "discard"])
-          ),
-          pointers: [
-            { index: lo, label: "lo" },
-            { index: hi, label: "hi" }
-          ],
-          vars: { target, lo, hi }
-        });
-      } else {
-        hi = mid - 1;
-        t.step({
-          line: 7,
-          message: `a[mid]=${values[mid]} > ${target} 이므로 오른쪽 절반을 통째로 버립니다. hi=${hi}`,
-          highlights: Object.fromEntries(
-            Array.from({ length: values.length }, (_, k) => [k, k >= lo && k <= hi ? "window" : "discard"])
-          ),
-          pointers: [
-            { index: lo, label: "lo" },
-            { index: hi, label: "hi" }
-          ],
-          vars: { target, lo, hi }
-        });
-      }
+      return t.frames;
     }
-    t.step({ line: 9, message: `범위가 비어 ${target}은 배열에 없습니다. -1을 반환합니다.`, vars: { target } });
-    return t.frames;
+    const goRight = values[mid] < target;
+    if (goRight) lo = mid + 1;
+    else hi = mid - 1;
+    t.step({
+      line: goRight ? 6 : 7,
+      message: goRight
+        ? `a[mid]=${values[mid]} < ${target} 이므로 왼쪽 절반을 통째로 버립니다. lo=${lo}`
+        : `a[mid]=${values[mid]} > ${target} 이므로 오른쪽 절반을 통째로 버립니다. hi=${hi}`,
+      highlights: searchWindow(lo, hi),
+      pointers: [
+        { index: lo, label: "lo" },
+        { index: hi, label: "hi" }
+      ],
+      vars: { target, lo, hi }
+    });
   }
-};
+  t.step({ line: 9, message: `범위가 비어 ${target}은 배열에 없습니다. -1을 반환합니다.`, vars: { target } });
+  return t.frames;
+}
 
 export const twoPointers: AlgorithmDef = {
   id: "two-pointers",
@@ -139,75 +125,73 @@ export const twoPointers: AlgorithmDef = {
 };
 
 function buildTwoPointersFrames(): Frame[] {
-  {
-    const values = randomSortedArray(12, 60);
-    const i = Math.floor(Math.random() * (values.length / 2));
-    const j = values.length - 1 - Math.floor(Math.random() * (values.length / 2 - 1));
-    const target = values[i] + values[j];
-    const t = new ArrayTracer(values);
-    t.step({
-      line: 1,
-      message: `정렬된 배열에서 합이 target=${target}이 되는 두 수를 찾습니다. 양 끝에서 시작합니다.`,
-      vars: { target }
-    });
+  const values = randomSortedArray(12, 60);
+  const i = Math.floor(Math.random() * (values.length / 2));
+  const j = values.length - 1 - Math.floor(Math.random() * (values.length / 2 - 1));
+  const target = values[i] + values[j];
+  const t = new ArrayTracer(values);
+  t.step({
+    line: 1,
+    message: `정렬된 배열에서 합이 target=${target}이 되는 두 수를 찾습니다. 양 끝에서 시작합니다.`,
+    vars: { target }
+  });
 
-    let left = 0;
-    let right = values.length - 1;
-    while (left < right) {
-      const sum = values[left] + values[right];
+  let left = 0;
+  let right = values.length - 1;
+  while (left < right) {
+    const sum = values[left] + values[right];
+    t.step({
+      line: 4,
+      message: `a[${left}]=${values[left]} + a[${right}]=${values[right]} = ${sum} 을 target=${target}과 비교합니다.`,
+      highlights: { [left]: "compare", [right]: "compare" },
+      pointers: [
+        { index: left, label: "left" },
+        { index: right, label: "right" }
+      ],
+      vars: { target, left, right, sum }
+    });
+    if (sum === target) {
       t.step({
-        line: 4,
-        message: `a[${left}]=${values[left]} + a[${right}]=${values[right]} = ${sum} 을 target=${target}과 비교합니다.`,
-        highlights: { [left]: "compare", [right]: "compare" },
+        line: 5,
+        message: `${values[left]} + ${values[right]} = ${target} — 정답 쌍을 찾았습니다!`,
+        highlights: { [left]: "found", [right]: "found" },
         pointers: [
           { index: left, label: "left" },
           { index: right, label: "right" }
         ],
-        vars: { target, left, right, sum }
+        vars: { target, left, right }
       });
-      if (sum === target) {
-        t.step({
-          line: 5,
-          message: `${values[left]} + ${values[right]} = ${target} — 정답 쌍을 찾았습니다!`,
-          highlights: { [left]: "found", [right]: "found" },
-          pointers: [
-            { index: left, label: "left" },
-            { index: right, label: "right" }
-          ],
-          vars: { target, left, right }
-        });
-        return t.frames;
-      }
-      if (sum < target) {
-        t.mark(left, "discard");
-        left++;
-        t.step({
-          line: 6,
-          message: `합 ${sum} < ${target}: 더 큰 합이 필요하므로 left를 오른쪽으로 옮깁니다.`,
-          pointers: [
-            { index: left, label: "left" },
-            { index: right, label: "right" }
-          ],
-          vars: { target, left, right }
-        });
-      } else {
-        t.mark(right, "discard");
-        right--;
-        t.step({
-          line: 7,
-          message: `합 ${sum} > ${target}: 더 작은 합이 필요하므로 right를 왼쪽으로 옮깁니다.`,
-          pointers: [
-            { index: left, label: "left" },
-            { index: right, label: "right" }
-          ],
-          vars: { target, left, right }
-        });
-      }
+      return t.frames;
     }
-    t.step({ line: 9, message: "포인터가 만났습니다. 조건을 만족하는 쌍이 없습니다.", vars: { target } });
-    return t.frames;
+    if (sum < target) {
+      t.mark(left, "discard");
+      left++;
+      t.step({
+        line: 6,
+        message: `합 ${sum} < ${target}: 더 큰 합이 필요하므로 left를 오른쪽으로 옮깁니다.`,
+        pointers: [
+          { index: left, label: "left" },
+          { index: right, label: "right" }
+        ],
+        vars: { target, left, right }
+      });
+    } else {
+      t.mark(right, "discard");
+      right--;
+      t.step({
+        line: 7,
+        message: `합 ${sum} > ${target}: 더 작은 합이 필요하므로 right를 왼쪽으로 옮깁니다.`,
+        pointers: [
+          { index: left, label: "left" },
+          { index: right, label: "right" }
+        ],
+        vars: { target, left, right }
+      });
+    }
   }
-};
+  t.step({ line: 9, message: "포인터가 만났습니다. 조건을 만족하는 쌍이 없습니다.", vars: { target } });
+  return t.frames;
+}
 
 export const slidingWindow: AlgorithmDef = {
   id: "sliding-window",
@@ -239,8 +223,7 @@ export const slidingWindow: AlgorithmDef = {
     const k = 4;
     const values = randomArray(12, 30, 1);
     const t = new ArrayTracer(values);
-    const windowHighlight = (from: number): Partial<Record<number, "window">> =>
-      Object.fromEntries(Array.from({ length: k }, (_, d) => [from + d, "window"]));
+    const windowHighlight = (from: number) => rangeHighlights(from, from + k - 1, "window");
 
     let windowSum = 0;
     for (let i = 0; i < k; i++) windowSum += values[i];
@@ -289,9 +272,7 @@ export const slidingWindow: AlgorithmDef = {
       }
     }
 
-    const answer: Partial<Record<number, "found">> = Object.fromEntries(
-      Array.from({ length: k }, (_, d) => [bestStart + d, "found"])
-    );
+    const answer = rangeHighlights(bestStart, bestStart + k - 1, "found");
     t.step({
       line: 8,
       message: `탐색 종료. 길이 ${k}짜리 구간 중 최대 합은 ${best} (구간 [${bestStart}..${bestStart + k - 1}])입니다.`,
@@ -354,9 +335,7 @@ export const prefixSum: AlgorithmDef = {
       const l = Math.floor(Math.random() * (values.length - 3));
       const r = l + 2 + Math.floor(Math.random() * (values.length - l - 3));
       const sum = prefix[r + 1] - prefix[l];
-      const window = Object.fromEntries(
-        Array.from({ length: r - l + 1 }, (_, d) => [l + d, "window" as const])
-      );
+      const window = rangeHighlights(l, r, "window");
       t.step({
         line: 9,
         message: `질의 ${q + 1}: 구간 [${l}..${r}]의 합은? → prefix[${r + 1}] − prefix[${l}] = ${prefix[r + 1]} − ${prefix[l]} = ${sum}. 순회 없이 끝!`,

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Shuffle, SkipBack } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { AlgorithmDef } from "../../learn/types.ts";
 import ArrayView from "./ArrayView.tsx";
 import CodePanel from "./CodePanel.tsx";
@@ -12,25 +12,19 @@ const speeds = [
   { label: "4×", intervalMs: 120 }
 ];
 
+// 알고리즘이 바뀌면 LearnAlgorithm이 key로 리마운트하므로, 프레임은 마운트 시 한 번 + 셔플 시에만 생성된다.
 export default function VisualizerPlayer({ algorithm }: { algorithm: AlgorithmDef }) {
-  const [runId, setRunId] = useState(0);
-  const frames = useMemo(() => algorithm.createFrames(), [algorithm, runId]);
+  const [frames, setFrames] = useState(() => algorithm.createFrames());
   const [frameIndex, setFrameIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speedIndex, setSpeedIndex] = useState(1);
-  const timerRef = useRef<number>();
 
   const frame = frames[Math.min(frameIndex, frames.length - 1)];
   const atEnd = frameIndex >= frames.length - 1;
 
   useEffect(() => {
-    setFrameIndex(0);
-    setPlaying(false);
-  }, [frames]);
-
-  useEffect(() => {
     if (!playing) return;
-    timerRef.current = window.setInterval(() => {
+    const id = window.setInterval(() => {
       setFrameIndex((current) => {
         if (current >= frames.length - 1) {
           setPlaying(false);
@@ -39,8 +33,14 @@ export default function VisualizerPlayer({ algorithm }: { algorithm: AlgorithmDe
         return current + 1;
       });
     }, speeds[speedIndex].intervalMs);
-    return () => window.clearInterval(timerRef.current);
+    return () => window.clearInterval(id);
   }, [playing, speedIndex, frames.length]);
+
+  function shuffle() {
+    setPlaying(false);
+    setFrames(algorithm.createFrames());
+    setFrameIndex(0);
+  }
 
   function togglePlay() {
     if (atEnd && !playing) {
@@ -103,12 +103,7 @@ export default function VisualizerPlayer({ algorithm }: { algorithm: AlgorithmDe
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          <button
-            className={controlClass}
-            type="button"
-            title="새 입력으로 다시 시작"
-            onClick={() => { setPlaying(false); setRunId((id) => id + 1); }}
-          >
+          <button className={controlClass} type="button" title="새 입력으로 다시 시작" onClick={shuffle}>
             <Shuffle className="h-4 w-4" />
           </button>
           <button className={controlClass} type="button" title="같은 입력으로 처음부터" onClick={() => { setPlaying(false); setFrameIndex(0); }}>

@@ -37,7 +37,7 @@ The app parses only the URL slug and generated title. It does not fetch the prob
 
 ## Learn: Visual Algorithm Playground
 
-The `Learn` tab is a built-in visual study space covering 32 must-know algorithms, from basics to advanced. Each one runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened (in Korean).
+The `Learn` tab is a built-in visual study space covering 32 must-know algorithms, from basics to advanced. Each one runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input (a few lessons — the maze BFS/DFS, N-Queens, and the trie — use a fixed instance by design). Every step highlights the active code line, shows the live variable values, and explains what just happened (in Korean).
 
 - Sorting: bubble, selection, insertion, counting, merge, quick, heap
 - Searching: binary search, quickselect (kth largest)
@@ -51,7 +51,7 @@ The `Learn` tab is a built-in visual study space covering 32 must-know algorithm
 
 Everything runs fully client-side; no LLM or network access is required. See `docs/learn.md` for the recommended study roadmap and contribution guide.
 
-Every algorithm is audited for correctness on each `pnpm test` run: `apps/web/scripts/verify-learn.ts` replays each visualization 40 times with random inputs and cross-checks the results against independent reference implementations (including brute-force searches). An algorithm cannot be registered without a matching audit routine.
+Every algorithm is audited for correctness on each `pnpm test` run: `apps/web/scripts/verify-learn.ts` replays each randomized visualization 40 times with fresh random inputs (deterministic ones — the fixed-maze BFS/DFS, N-Queens, and the trie — once, since every run is identical) and cross-checks the results against independent reference implementations (including brute-force searches). An algorithm cannot be registered without a matching audit routine.
 
 ## Run the Local Dashboard
 

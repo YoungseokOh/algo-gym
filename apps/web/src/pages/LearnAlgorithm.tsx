@@ -46,7 +46,7 @@ export default function LearnAlgorithm() {
         ) : null}
       </div>
 
-      <VisualizerPlayer algorithm={algorithm} />
+      <VisualizerPlayer key={algorithm.id} algorithm={algorithm} />
 
       <section className="rounded-lg border border-stone-200 bg-white p-4">
         <h2 className="mb-3 inline-flex items-center gap-2 text-base font-semibold text-stone-950">

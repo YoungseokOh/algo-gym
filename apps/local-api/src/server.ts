@@ -31,6 +31,11 @@ app.route("/api", leetcodeStatsRoutes);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
+app.onError((error, c) => {
+  console.error(error);
+  return c.json({ error: error instanceof Error ? error.message : "Internal server error" }, 500);
+});
+
 const port = Number(process.env.PORT ?? 8787);
 await ensureWorkspace(getProjectRoot());
 await loadWorkspaceEnv();

@@ -1,7 +1,7 @@
-import { ArrayTracer } from "../tracer.ts";
+import { ArrayTracer, indexHighlights } from "../tracer.ts";
 import type { AlgorithmDef, CellState, Frame, GridFrame } from "../types.ts";
 
-const MAZE = [
+export const MAZE = [
   "S..#........",
   ".#.#.#####..",
   ".#.#.....#..",
@@ -39,6 +39,9 @@ function parseMaze() {
   return { rows, cols, start, goal, walls };
 }
 
+// 미로는 상수이므로 한 번만 파싱한다 (프레임마다 재파싱 금지).
+const PARSED_MAZE = parseMaze();
+
 function key([r, c]: Cell): string {
   return `${r},${c}`;
 }
@@ -54,7 +57,7 @@ type GridSnapshotInput = {
 };
 
 function makeGridFrame(input: GridSnapshotInput): GridFrame {
-  const { rows, cols, start, goal, walls } = parseMaze();
+  const { rows, cols, start, goal, walls } = PARSED_MAZE;
   const pathKeys = new Set((input.path ?? []).map(key));
   const cells: CellState[][] = [];
 
@@ -128,7 +131,7 @@ export const bfsGrid: AlgorithmDef = {
     "}"
   ],
   createFrames(): Frame[] {
-    const { rows, cols, start, goal, walls } = parseMaze();
+    const { rows, cols, start, goal, walls } = PARSED_MAZE;
     const frames: Frame[] = [];
     const queue: Cell[] = [start];
     const visited = new Set([key(start)]);
@@ -247,7 +250,7 @@ export const dfsGrid: AlgorithmDef = {
     "}"
   ],
   createFrames(): Frame[] {
-    const { rows, cols, start, goal, walls } = parseMaze();
+    const { rows, cols, start, goal, walls } = PARSED_MAZE;
     const frames: Frame[] = [];
     const stack: Cell[] = [start];
     const visited = new Set([key(start)]);
@@ -419,8 +422,8 @@ export const dijkstra: AlgorithmDef = {
           if (dist.has(k)) state = done.has(k) ? "visited" : "frontier";
           if (pathKeys.has(k)) state = "path";
           if (k === key(start)) state = "start";
-          if (k === key(goal) && !dist.has(k) && !pathKeys.has(k)) state = "goal";
-          if (options.current && k === key(options.current)) state = "current";
+          if (k === key(goal) && !pathKeys.has(k)) state = "goal";
+          if (options.current && k === key(options.current) && k !== key(goal)) state = "current";
           rowCells.push(state);
           rowLabels.push(dist.has(k) ? dist.get(k)! : cost[r][c]);
         }
@@ -463,14 +466,7 @@ export const dijkstra: AlgorithmDef = {
       );
 
       if (key(cur) === key(goal)) {
-        const path: Cell[] = [cur];
-        let walker = key(cur);
-        while (parent.has(walker)) {
-          const prev = parent.get(walker)!;
-          path.push(prev);
-          walker = key(prev);
-        }
-        path.reverse();
+        const path = reconstructPath(parent, cur);
         frames.push(
           makeFrame(7, `도착! 최소 비용은 ${best}입니다. parent 맵을 따라 최단 경로를 복원했습니다.`, {
             path,
@@ -570,7 +566,7 @@ export const topologicalSort: AlgorithmDef = {
     const queue = Array.from({ length: n }, (_, v) => v).filter((v) => indegree[v] === 0);
     const order: number[] = [];
     const queueText = () => (queue.length ? `[${queue.join(", ")}]` : "[]");
-    const queueHighlights = () => Object.fromEntries(queue.map((v) => [v, "window" as const]));
+    const queueHighlights = () => indexHighlights(queue, "window");
 
     t.step({
       line: 7,

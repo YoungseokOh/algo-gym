@@ -8,10 +8,13 @@
  *
  * 실행: pnpm --filter @algo-gym/web test  (또는 npx tsx scripts/verify-learn.ts)
  */
+import { MAZE } from "../src/learn/algorithms/graph.ts";
 import { algorithms } from "../src/learn/index.ts";
 import type { ArrayFrame, Frame } from "../src/learn/types.ts";
 
 const RUNS_PER_ALGORITHM = 40;
+// 무작위성이 없는 알고리즘: 40회 반복해도 같은 프레임이라 1회면 충분하다.
+const DETERMINISTIC_IDS = new Set(["bfs-grid", "dfs-grid", "n-queens", "trie"]);
 
 type Check = (frames: Frame[]) => void;
 
@@ -26,7 +29,11 @@ function lastFrame(frames: Frame[]): Frame {
 function firstArrayValues(frames: Frame[]): number[] {
   const first = frames[0];
   if (first.kind !== "array") fail("첫 프레임이 배열이 아닙니다.");
-  return first.values.map(Number);
+  return first.values.map((value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) fail(`배열 값이 숫자가 아닙니다: ${JSON.stringify(value)} (NaN 비교는 검사를 무력화합니다)`);
+    return n;
+  });
 }
 
 function varOf(frame: Frame, name: string): string {
@@ -122,17 +129,6 @@ function refDailyTemperatures(t: number[]): number[] {
   });
 }
 
-const MAZE = [
-  "S..#........",
-  ".#.#.#####..",
-  ".#.#.....#..",
-  ".#.#.#.#.#..",
-  ".#...#.#.#..",
-  ".###.#.#.#..",
-  ".....#.#....",
-  ".....#.#...G"
-];
-
 function refMazeShortestDistance(): number {
   const rows = MAZE.length;
   const cols = MAZE[0].length;
@@ -161,6 +157,8 @@ function refMazeShortestDistance(): number {
   }
   fail("레퍼런스 BFS가 미로의 도착점에 닿지 못했습니다 — 미로 정의 오류!");
 }
+
+const MAZE_SHORTEST_DISTANCE = refMazeShortestDistance();
 
 function refDijkstraMinCost(cost: number[][]): number {
   const rows = cost.length;
@@ -330,10 +328,11 @@ const checks: Record<string, Check> = {
     const parent = Array.from({ length: n }, (_, i) => i);
     const find = (x: number): number => (parent[x] === x ? x : (parent[x] = find(parent[x])));
     for (const frame of frames) {
-      const match = /^union\((\d+), (\d+)\)/.exec(frame.message);
-      if (match) {
-        const ra = find(Number(match[1]));
-        const rb = find(Number(match[2]));
+      const op = frame.vars?.union;
+      if (typeof op === "string") {
+        const [a, b] = op.split(",").map(Number);
+        const ra = find(a);
+        const rb = find(b);
         if (ra !== rb) parent[rb] = ra;
       }
     }
@@ -388,11 +387,12 @@ const checks: Record<string, Check> = {
   },
 
   knapsack: (frames) => {
-    const itemPattern = /([A-D])\(무게 (\d+), 가치 (\d+)\)/g;
-    const items: Array<{ w: number; v: number }> = [];
-    for (const match of frames[0].message.matchAll(itemPattern)) {
-      items.push({ w: Number(match[2]), v: Number(match[3]) });
-    }
+    const items = varOf(frames[0], "items")
+      .split(",")
+      .map((pair) => {
+        const [w, v] = pair.split(":").map(Number);
+        return { w, v };
+      });
     if (items.length !== 4) fail(`knapsack: 첫 프레임에서 물건 4개를 읽지 못했습니다 (${items.length}개).`);
     const cap = Number(varOf(frames[0], "용량"));
     const reported = Number(varOf(lastFrame(frames), "최대 가치"));
@@ -411,7 +411,7 @@ const checks: Record<string, Check> = {
     const last = lastFrame(frames);
     if (!last.message.includes("도착")) fail("bfs-grid: 도착점에 닿지 못했습니다.");
     const reported = Number(varOf(last, "최단 거리"));
-    const expected = refMazeShortestDistance();
+    const expected = MAZE_SHORTEST_DISTANCE;
     if (reported !== expected) fail(`bfs-grid: 최단 거리 ${reported} ≠ 기준값 ${expected}`);
   },
 
@@ -419,7 +419,7 @@ const checks: Record<string, Check> = {
     const last = lastFrame(frames);
     if (!last.message.includes("도착")) fail("dfs-grid: 도착점에 닿지 못했습니다.");
     const reported = Number(varOf(last, "경로 길이"));
-    const shortest = refMazeShortestDistance();
+    const shortest = MAZE_SHORTEST_DISTANCE;
     if (reported < shortest) fail(`dfs-grid: 경로 길이 ${reported}가 최단 거리 ${shortest}보다 짧을 수는 없습니다.`);
   },
 
@@ -457,14 +457,9 @@ const checks: Record<string, Check> = {
   },
 
   "fast-slow-pointers": (frames) => {
-    // 첫 프레임의 화살표 라벨에서 next 배열을 복원해 Set 기반으로 사이클을 재판정한다.
-    const first = frames[0] as ArrayFrame;
-    const n = first.values.length;
-    const next = Array.from({ length: n }, (_, i) => {
-      const label = first.sublabels?.[i];
-      if (!label) fail(`fast-slow-pointers: ${i}번 노드의 next 라벨이 없습니다.`);
-      return label === "→∅" ? -1 : Number(label.slice(1));
-    });
+    // 첫 프레임의 기계용 vars.next에서 연결 구조를 복원해 Set 기반으로 사이클을 재판정한다.
+    const next = varOf(frames[0], "next").split(",").map(Number);
+    if (next.some((value) => !Number.isInteger(value))) fail("fast-slow-pointers: next 목록이 손상되었습니다.");
     const seen = new Set<number>();
     let cursor = 0;
     let expected = false;
@@ -566,15 +561,16 @@ for (const algorithm of algorithms) {
     failures++;
     continue;
   }
+  const runs = DETERMINISTIC_IDS.has(algorithm.id) ? 1 : RUNS_PER_ALGORITHM;
   let frameCount = 0;
   try {
-    for (let run = 0; run < RUNS_PER_ALGORITHM; run++) {
+    for (let run = 0; run < runs; run++) {
       const frames = algorithm.createFrames();
       frameCount = frames.length;
       checkInvariants(algorithm.id, frames, algorithm.code);
       check(frames);
     }
-    console.log(`PASS ${algorithm.id} (${RUNS_PER_ALGORITHM}회 실행, 마지막 ${frameCount} 프레임)`);
+    console.log(`PASS ${algorithm.id} (${runs}회 실행, 마지막 ${frameCount} 프레임)`);
   } catch (error) {
     console.error(`FAIL ${algorithm.id}: ${error instanceof Error ? error.message : error}`);
     failures++;
@@ -585,4 +581,4 @@ if (failures > 0) {
   console.error(`\n${failures}개 알고리즘이 감사를 통과하지 못했습니다.`);
   process.exit(1);
 }
-console.log(`\n전체 ${algorithms.length}개 알고리즘 × ${RUNS_PER_ALGORITHM}회 — 모든 감사 통과.`);
+console.log(`\n전체 ${algorithms.length}개 알고리즘 감사 통과 (무작위 입력 ${RUNS_PER_ALGORITHM}회, 결정적 알고리즘 1회).`);

@@ -417,3 +417,164 @@ export const quickSort: AlgorithmDef = {
     return t.frames;
   }
 };
+
+export const countingSort: AlgorithmDef = {
+  id: "counting-sort",
+  title: "Counting Sort",
+  koTitle: "계수 정렬",
+  category: "정렬",
+  difficulty: "기초",
+  summary: "값을 비교하지 않고, 각 값이 몇 번 등장하는지 센 다음 순서대로 다시 써 내려가는 정렬입니다.",
+  insight: [
+    "비교 정렬의 이론적 하한은 O(n log n)이지만, 계수 정렬은 비교를 하지 않아 O(n + k)에 정렬합니다 (k는 값의 범위).",
+    "값의 범위가 작고 정수일 때만 쓸 수 있습니다. 범위가 크면 count 배열이 메모리를 너무 많이 먹습니다.",
+    "기수 정렬(radix sort)의 각 자릿수 정렬 단계로도 쓰입니다. 이때는 안정성이 보장되는 누적합 방식을 사용합니다.",
+    "'값 자체를 인덱스로 쓴다'는 발상은 해시/버킷 계열 기법의 출발점입니다."
+  ],
+  complexity: { time: "O(n + k)", space: "O(k)", note: "k = 값의 범위. 비교 기반이 아님" },
+  code: [
+    "function countingSort(a: number[]) {",
+    "  const count = new Array(10).fill(0);",
+    "  for (const value of a) count[value]++;",
+    "  let i = 0;",
+    "  for (let v = 0; v < 10; v++) {",
+    "    while (count[v] > 0) {",
+    "      a[i++] = v;",
+    "      count[v]--;",
+    "    }",
+    "  }",
+    "  return a;",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const t = new ArrayTracer(randomArray(12, 9, 0));
+    const count = new Array(10).fill(0);
+    const countText = () => `[${count.join(", ")}]`;
+    t.step({ line: 1, message: "값의 범위(0~9)만큼 칸을 가진 count 배열을 0으로 초기화합니다.", vars: { count: countText() } });
+
+    for (let idx = 0; idx < t.a.length; idx++) {
+      count[t.a[idx]]++;
+      t.step({
+        line: 2,
+        message: `값 ${t.a[idx]}을 발견 — count[${t.a[idx]}]을 ${count[t.a[idx]]}로 올립니다.`,
+        highlights: { [idx]: "active" },
+        pointers: [{ index: idx, label: "읽는 중" }],
+        vars: { count: countText() }
+      });
+    }
+
+    let i = 0;
+    for (let v = 0; v < 10; v++) {
+      while (count[v] > 0) {
+        t.a[i] = v;
+        count[v]--;
+        t.mark(i, "sorted");
+        t.step({
+          line: 6,
+          message: `count[${v}]가 남아 있으므로 a[${i}]에 ${v}를 씁니다.`,
+          highlights: { [i]: "swap" },
+          pointers: [{ index: i, label: "쓰는 중" }],
+          vars: { v, count: countText() }
+        });
+        i++;
+      }
+    }
+    t.step({ line: 10, message: "정렬 완료! 비교를 한 번도 하지 않았습니다." });
+    return t.frames;
+  }
+};
+
+export const heapSort: AlgorithmDef = {
+  id: "heap-sort",
+  title: "Heap Sort",
+  koTitle: "힙 정렬",
+  category: "정렬",
+  difficulty: "중급",
+  summary: "배열을 최대 힙으로 만든 뒤, 루트(최댓값)를 맨 뒤와 교환하고 힙을 복구하는 과정을 반복합니다.",
+  insight: [
+    "배열 인덱스 i의 자식은 2i+1, 2i+2 — 포인터 없이 배열만으로 완전 이진 트리를 표현하는 것이 힙의 핵심입니다.",
+    "heapify(전체를 힙으로 만들기)는 마지막 내부 노드부터 거꾸로 sift-down 하면 O(n)에 끝납니다.",
+    "추가 메모리 없이 항상 O(n log n)을 보장하는 유일한 대중적 정렬입니다. 다만 캐시 효율이 나빠 실측은 퀵 정렬보다 느린 편입니다.",
+    "힙 자체는 우선순위 큐의 구현체로, 다익스트라·K번째 큰 수·작업 스케줄링 문제의 기반입니다."
+  ],
+  complexity: { time: "O(n log n)", space: "O(1)" },
+  code: [
+    "function heapSort(a: number[]) {",
+    "  const n = a.length;",
+    "  for (let i = (n >> 1) - 1; i >= 0; i--) siftDown(a, i, n);",
+    "  for (let end = n - 1; end > 0; end--) {",
+    "    [a[0], a[end]] = [a[end], a[0]];",
+    "    siftDown(a, 0, end);",
+    "  }",
+    "}",
+    "function siftDown(a: number[], i: number, size: number) {",
+    "  while (2 * i + 1 < size) {",
+    "    let child = 2 * i + 1;",
+    "    if (child + 1 < size && a[child + 1] > a[child]) child++;",
+    "    if (a[i] >= a[child]) break;",
+    "    [a[i], a[child]] = [a[child], a[i]];",
+    "    i = child;",
+    "  }",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const t = new ArrayTracer(randomArray(8));
+    const n = t.a.length;
+
+    const siftDown = (start: number, size: number, phase: string) => {
+      let i = start;
+      while (2 * i + 1 < size) {
+        let child = 2 * i + 1;
+        if (child + 1 < size && t.a[child + 1] > t.a[child]) child++;
+        t.step({
+          line: 11,
+          message: `${phase}: a[${i}]=${t.a[i]}와 더 큰 자식 a[${child}]=${t.a[child]}를 비교합니다. (자식 = 2·${i}+1, 2·${i}+2)`,
+          highlights: { [i]: "active", [child]: "compare" },
+          pointers: [
+            { index: i, label: "부모" },
+            { index: child, label: "자식" }
+          ],
+          vars: { i, child, "힙 크기": size }
+        });
+        if (t.a[i] >= t.a[child]) {
+          t.step({
+            line: 12,
+            message: `부모 ${t.a[i]} ≥ 자식 ${t.a[child]} — 힙 조건을 만족하므로 멈춥니다.`,
+            highlights: { [i]: "active" },
+            vars: { i, "힙 크기": size }
+          });
+          break;
+        }
+        t.swap(i, child);
+        t.step({
+          line: 13,
+          message: `자식이 더 크므로 교환하고 한 단계 내려갑니다.`,
+          highlights: { [i]: "swap", [child]: "swap" },
+          vars: { i: child, "힙 크기": size }
+        });
+        i = child;
+      }
+    };
+
+    t.step({ line: 2, message: "1단계: 마지막 내부 노드부터 거꾸로 sift-down 하여 배열 전체를 최대 힙으로 만듭니다." });
+    for (let i = (n >> 1) - 1; i >= 0; i--) {
+      siftDown(i, n, "heapify");
+    }
+    t.step({ line: 3, message: `최대 힙 완성! 루트 a[0]=${t.a[0]}가 최댓값입니다. 이제 루트를 하나씩 뽑아 뒤에 쌓습니다.` });
+
+    for (let end = n - 1; end > 0; end--) {
+      t.swap(0, end);
+      t.mark(end, "sorted");
+      t.step({
+        line: 4,
+        message: `루트(최댓값) ${t.a[end]}를 힙의 마지막 a[${end}]와 교환합니다. ${t.a[end]}의 위치가 확정되었습니다.`,
+        highlights: { 0: "swap" },
+        vars: { "힙 크기": end }
+      });
+      siftDown(0, end, "힙 복구");
+    }
+    t.mark(0, "sorted");
+    t.step({ line: 7, message: "정렬 완료!" });
+    return t.frames;
+  }
+};

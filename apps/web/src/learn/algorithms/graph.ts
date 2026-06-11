@@ -339,3 +339,170 @@ export const dfsGrid: AlgorithmDef = {
     return frames;
   }
 };
+
+const DIJKSTRA_ROWS = 6;
+const DIJKSTRA_COLS = 10;
+
+const DIJKSTRA_LEGEND = [
+  { state: "start", label: "시작" },
+  { state: "goal", label: "도착" },
+  { state: "current", label: "방금 확정" },
+  { state: "frontier", label: "거리 계산됨(미확정)" },
+  { state: "visited", label: "최단 거리 확정" },
+  { state: "path", label: "최단 경로" },
+  { state: "empty", label: "미방문 (숫자 = 입장 비용)" }
+] satisfies GridFrame["legend"];
+
+export const dijkstra: AlgorithmDef = {
+  id: "dijkstra",
+  title: "Dijkstra's Algorithm",
+  koTitle: "다익스트라",
+  category: "그래프 탐색",
+  difficulty: "고급",
+  summary: "칸마다 지나가는 비용이 다른 지도에서 최소 비용 경로를 찾습니다. '아직 확정 안 된 곳 중 가장 가까운 곳'을 하나씩 확정합니다.",
+  insight: [
+    "BFS는 모든 간선의 비용이 같을 때만 최단 경로를 보장합니다. 비용이 제각각이면 다익스트라가 필요합니다.",
+    "핵심 불변식: 미확정 정점 중 거리가 가장 작은 정점은 그 거리가 이미 최단입니다 — 다른 경로로 우회하면 반드시 더 비싸지기 때문입니다 (음수 간선이 없다는 전제).",
+    "음수 가중치가 있으면 이 불변식이 깨집니다. 그때는 벨만-포드를 써야 합니다.",
+    "여기서는 배우기 쉬운 '선형 탐색으로 최솟값 찾기' O(V²) 버전을 보여줍니다. 실전에서는 최소 힙을 써서 O((V+E) log V)로 줄입니다.",
+    "네트워크 라우팅(OSPF), 지도 길찾기의 기반 알고리즘입니다. LeetCode 743 Network Delay Time이 대표 문제입니다."
+  ],
+  complexity: { time: "O(V²)", space: "O(V)", note: "최소 힙 사용 시 O((V+E) log V)" },
+  code: [
+    "function dijkstra(start: Cell, goal: Cell) {",
+    "  const dist = new Map([[key(start), 0]]);",
+    "  const done = new Set<string>();",
+    "  while (true) {",
+    "    const cur = minUndone(dist, done); // 미확정 중 최소 거리",
+    "    if (!cur) return null;",
+    "    done.add(key(cur));",
+    "    if (key(cur) === key(goal)) return path(parent, cur);",
+    "    for (const next of neighbors(cur)) {",
+    "      const cand = dist.get(key(cur))! + cost(next);",
+    "      if (cand < (dist.get(key(next)) ?? Infinity)) {",
+    "        dist.set(key(next), cand);",
+    "        parent.set(key(next), cur);",
+    "      }",
+    "    }",
+    "  }",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const rows = DIJKSTRA_ROWS;
+    const cols = DIJKSTRA_COLS;
+    const cost: number[][] = Array.from({ length: rows }, () =>
+      Array.from({ length: cols }, () => 1 + Math.floor(Math.random() * 5))
+    );
+    const start: Cell = [0, 0];
+    const goal: Cell = [rows - 1, cols - 1];
+
+    const dist = new Map<string, number>([[key(start), 0]]);
+    const done = new Set<string>();
+    const parent = new Map<string, Cell>();
+    const frames: Frame[] = [];
+
+    const makeFrame = (
+      line: number,
+      message: string,
+      options: { current?: Cell; path?: Cell[]; vars?: Record<string, string | number> } = {}
+    ): GridFrame => {
+      const pathKeys = new Set((options.path ?? []).map(key));
+      const cells: CellState[][] = [];
+      const labels: Array<Array<string | number | null>> = [];
+      for (let r = 0; r < rows; r++) {
+        const rowCells: CellState[] = [];
+        const rowLabels: Array<string | number | null> = [];
+        for (let c = 0; c < cols; c++) {
+          const k = `${r},${c}`;
+          let state: CellState = "empty";
+          if (dist.has(k)) state = done.has(k) ? "visited" : "frontier";
+          if (pathKeys.has(k)) state = "path";
+          if (k === key(start)) state = "start";
+          if (k === key(goal) && !dist.has(k) && !pathKeys.has(k)) state = "goal";
+          if (options.current && k === key(options.current)) state = "current";
+          rowCells.push(state);
+          rowLabels.push(dist.has(k) ? dist.get(k)! : cost[r][c]);
+        }
+        cells.push(rowCells);
+        labels.push(rowLabels);
+      }
+      return {
+        kind: "grid",
+        cells,
+        labels,
+        codeLine: line,
+        message,
+        vars: options.vars,
+        legend: DIJKSTRA_LEGEND
+      };
+    };
+
+    frames.push(
+      makeFrame(1, "흰 칸의 숫자는 그 칸에 '들어가는 비용'입니다. 시작점의 거리를 0으로 두고 출발합니다.", {
+        vars: { "확정된 칸": 0 }
+      })
+    );
+
+    while (true) {
+      let cur: Cell | undefined;
+      let best = Infinity;
+      for (const [k, d] of dist) {
+        if (!done.has(k) && d < best) {
+          best = d;
+          cur = k.split(",").map(Number) as Cell;
+        }
+      }
+      if (!cur) break;
+      done.add(key(cur));
+      frames.push(
+        makeFrame(6, `미확정 칸 중 거리가 가장 작은 (${cur[0]}, ${cur[1]})(거리 ${best})를 확정합니다. 더 싼 우회로는 존재할 수 없습니다.`, {
+          current: cur,
+          vars: { "확정된 칸": done.size, "현재 거리": best }
+        })
+      );
+
+      if (key(cur) === key(goal)) {
+        const path: Cell[] = [cur];
+        let walker = key(cur);
+        while (parent.has(walker)) {
+          const prev = parent.get(walker)!;
+          path.push(prev);
+          walker = key(prev);
+        }
+        path.reverse();
+        frames.push(
+          makeFrame(7, `도착! 최소 비용은 ${best}입니다. parent 맵을 따라 최단 경로를 복원했습니다.`, {
+            path,
+            vars: { "최소 비용": best, "경로 길이": path.length }
+          })
+        );
+        return frames;
+      }
+
+      const improved: string[] = [];
+      for (const [dr, dc] of DIRECTIONS) {
+        const next: Cell = [cur[0] + dr, cur[1] + dc];
+        const [r, c] = next;
+        if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
+        if (done.has(key(next))) continue;
+        const cand = dist.get(key(cur))! + cost[r][c];
+        if (cand < (dist.get(key(next)) ?? Infinity)) {
+          dist.set(key(next), cand);
+          parent.set(key(next), cur);
+          improved.push(`(${r},${c})→${cand}`);
+        }
+      }
+      if (improved.length > 0) {
+        frames.push(
+          makeFrame(11, `이웃의 거리를 갱신(relax)합니다: ${improved.join(", ")}`, {
+            current: cur,
+            vars: { "확정된 칸": done.size }
+          })
+        );
+      }
+    }
+
+    frames.push(makeFrame(5, "더 이상 확정할 칸이 없습니다.", {}));
+    return frames;
+  }
+};

@@ -1,14 +1,5 @@
-import { ArrayTracer, randomArray, randomSortedArray } from "../tracer.ts";
+import { ArrayTracer, randomArray, randomSortedArray, withEnoughSteps } from "../tracer.ts";
 import type { AlgorithmDef, Frame } from "../types.ts";
-
-// 답을 너무 빨리 찾은 실행은 보여줄 단계가 거의 없으므로 입력을 다시 뽑는다.
-function withEnoughSteps(build: () => Frame[], minFrames = 8): Frame[] {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const frames = build();
-    if (frames.length >= minFrames) return frames;
-  }
-  return build();
-}
 
 export const binarySearch: AlgorithmDef = {
   id: "binary-search",
@@ -307,6 +298,76 @@ export const slidingWindow: AlgorithmDef = {
       highlights: answer,
       vars: { k, best }
     });
+    return t.frames;
+  }
+};
+
+export const prefixSum: AlgorithmDef = {
+  id: "prefix-sum",
+  title: "Prefix Sum",
+  koTitle: "접두사 합",
+  category: "배열 테크닉",
+  difficulty: "기초",
+  summary: "누적 합 배열을 한 번 만들어 두면, 어떤 구간의 합이든 뺄셈 한 번(O(1))으로 구할 수 있습니다.",
+  insight: [
+    "구간 합 [l..r] = prefix[r+1] − prefix[l]. 'r까지의 누적'에서 'l 직전까지의 누적'을 빼는 것이 전부입니다.",
+    "전처리 O(n) 한 번으로 이후의 모든 구간 합 질의가 O(1)이 됩니다 — 질의가 많을수록 이득이 커집니다.",
+    "prefix[0] = 0을 두는(길이 n+1) 관례 덕분에 l=0인 구간도 예외 처리 없이 같은 공식으로 처리됩니다.",
+    "Subarray Sum Equals K(LeetCode 560)는 접두사 합 + 해시맵의 결합이고, 2차원 누적 합·차분 배열(difference array)로도 확장됩니다."
+  ],
+  complexity: { time: "전처리 O(n), 질의 O(1)", space: "O(n)" },
+  code: [
+    "function buildPrefix(a: number[]) {",
+    "  const prefix = new Array(a.length + 1).fill(0);",
+    "  for (let i = 0; i < a.length; i++) {",
+    "    prefix[i + 1] = prefix[i] + a[i];",
+    "  }",
+    "  return prefix;",
+    "}",
+    "// 구간 합 [l..r] = prefix[r + 1] - prefix[l]",
+    "function rangeSum(prefix: number[], l: number, r: number) {",
+    "  return prefix[r + 1] - prefix[l];",
+    "}"
+  ],
+  createFrames(): Frame[] {
+    const values = randomArray(10, 20, 1);
+    const t = new ArrayTracer(values);
+    const prefix = new Array<number>(values.length + 1).fill(0);
+
+    t.step({ line: 1, message: "1단계: 누적 합 배열을 만듭니다. 각 칸 아래 보라색 숫자가 '여기까지의 누적 합'입니다." });
+
+    for (let i = 0; i < values.length; i++) {
+      prefix[i + 1] = prefix[i] + values[i];
+      t.setSublabel(i, String(prefix[i + 1]));
+      t.step({
+        line: 3,
+        message: `prefix[${i + 1}] = ${prefix[i]} + a[${i}](${values[i]}) = ${prefix[i + 1]}`,
+        highlights: { [i]: "active" },
+        pointers: [{ index: i, label: "i" }],
+        vars: { i, [`prefix[${i + 1}]`]: prefix[i + 1] }
+      });
+    }
+
+    t.step({ line: 5, message: "전처리 완료! 이제 어떤 구간 합이든 뺄셈 한 번으로 구할 수 있습니다." });
+
+    for (let q = 0; q < 2; q++) {
+      const l = Math.floor(Math.random() * (values.length - 3));
+      const r = l + 2 + Math.floor(Math.random() * (values.length - l - 3));
+      const sum = prefix[r + 1] - prefix[l];
+      const window = Object.fromEntries(
+        Array.from({ length: r - l + 1 }, (_, d) => [l + d, "window" as const])
+      );
+      t.step({
+        line: 9,
+        message: `질의 ${q + 1}: 구간 [${l}..${r}]의 합은? → prefix[${r + 1}] − prefix[${l}] = ${prefix[r + 1]} − ${prefix[l]} = ${sum}. 순회 없이 끝!`,
+        highlights: window,
+        pointers: [
+          { index: l, label: "l" },
+          { index: r, label: "r" }
+        ],
+        vars: { l, r, "구간 합": sum }
+      });
+    }
     return t.frames;
   }
 };

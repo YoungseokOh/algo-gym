@@ -37,16 +37,20 @@ The app parses only the URL slug and generated title. It does not fetch the prob
 
 ## Learn: Visual Algorithm Playground
 
-The `Learn` tab is a built-in visual study space. Each algorithm runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened.
+The `Learn` tab is a built-in visual study space covering 26 must-know algorithms, from basics to advanced. Each one runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened (in Korean).
 
-Included algorithms:
-
-- Sorting: bubble, selection, insertion, merge, quick
+- Sorting: bubble, selection, insertion, counting, merge, quick, heap
 - Searching: binary search
-- Array techniques: two pointers (Two Sum II), sliding window
-- Graph traversal: BFS and DFS on a maze grid (with path reconstruction)
+- Array techniques: two pointers, sliding window, prefix sum
+- Data structures: hash map (Two Sum), stack (Valid Parentheses), monotonic stack (Daily Temperatures), reverse linked list, union-find
+- Dynamic programming: climbing stairs, Kadane's algorithm, house robber, LCS (with traceback), 0/1 knapsack
+- Greedy: jump game
+- Graph traversal: BFS, DFS, Dijkstra (weighted grid)
+- Backtracking: N-Queens
 
-Everything runs fully client-side; no LLM or network access is required.
+Everything runs fully client-side; no LLM or network access is required. See `docs/learn.md` for the recommended study roadmap and contribution guide.
+
+Every algorithm is audited for correctness on each `pnpm test` run: `apps/web/scripts/verify-learn.ts` replays each visualization 40 times with random inputs and cross-checks the results against independent reference implementations (including brute-force searches). An algorithm cannot be registered without a matching audit routine.
 
 ## Run the Local Dashboard
 

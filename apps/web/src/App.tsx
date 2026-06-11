@@ -1,6 +1,8 @@
-import { Dumbbell, LayoutDashboard, ListChecks, Settings, Signal } from "lucide-react";
+import { Dumbbell, GraduationCap, LayoutDashboard, ListChecks, Settings, Signal } from "lucide-react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard.tsx";
+import Learn from "./pages/Learn.tsx";
+import LearnAlgorithm from "./pages/LearnAlgorithm.tsx";
 import ProblemDetail from "./pages/ProblemDetail.tsx";
 import Problems from "./pages/Problems.tsx";
 import SettingsPage from "./pages/Settings.tsx";
@@ -9,6 +11,7 @@ import Stats from "./pages/Stats.tsx";
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/problems", label: "Problems", icon: ListChecks },
+  { to: "/learn", label: "Learn", icon: GraduationCap },
   { to: "/stats", label: "Stats", icon: Signal },
   { to: "/settings", label: "Settings", icon: Settings }
 ];
@@ -48,6 +51,8 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/problems" element={<Problems />} />
           <Route path="/problems/:titleSlug" element={<ProblemDetail />} />
+          <Route path="/learn" element={<Learn />} />
+          <Route path="/learn/:algorithmId" element={<LearnAlgorithm />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>

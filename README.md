@@ -35,6 +35,19 @@ Open:
 
 The app parses only the URL slug and generated title. It does not fetch the problem body.
 
+## Learn: Visual Algorithm Playground
+
+The `Learn` tab is a built-in visual study space. Each algorithm runs as a step-by-step animation with play/pause, step forward/back, speed control, and a shuffle button for fresh random input. Every step highlights the active code line, shows the live variable values, and explains what just happened.
+
+Included algorithms:
+
+- Sorting: bubble, selection, insertion, merge, quick
+- Searching: binary search
+- Array techniques: two pointers (Two Sum II), sliding window
+- Graph traversal: BFS and DFS on a maze grid (with path reconstruction)
+
+Everything runs fully client-side; no LLM or network access is required.
+
 ## Run the Local Dashboard
 
 ```bash

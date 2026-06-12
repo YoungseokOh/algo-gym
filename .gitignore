@@ -6,6 +6,7 @@ coverage/
 .playwright-mcp/
 
 workspace/
+!packages/workspace/
 .env
 .env.*
 !.env.example

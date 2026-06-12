@@ -89,6 +89,9 @@ importers:
         specifier: ^6.0.7
         version: 6.4.2(@types/node@22.19.19)(jiti@1.21.7)(tsx@4.22.3)(yaml@2.9.0)
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.19
       '@types/react':
         specifier: ^18.3.18
         version: 18.3.29
@@ -104,6 +107,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.17
         version: 3.4.19(tsx@4.22.3)(yaml@2.9.0)
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.3
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

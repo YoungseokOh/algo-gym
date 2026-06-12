@@ -49,7 +49,10 @@ export async function getConfig(): Promise<AppConfig> {
 }
 
 export async function saveConfig(config: Partial<AppConfig>): Promise<AppConfig> {
-  const data = await apiJson<{ config: AppConfig }>("/api/settings", "PATCH", config);
+  const data = await apiJson<{ config?: AppConfig; error?: string }>("/api/settings", "PATCH", config);
+  if (!data.config) {
+    throw new Error(data.error ?? "Failed to save settings.");
+  }
   return data.config;
 }
 
